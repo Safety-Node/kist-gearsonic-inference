@@ -14,6 +14,8 @@ C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid rob
 | `libPXREARobotSDK` | PICO VR C++ client library |
 | `unitree_sdk2` | Unitree G1 DDS client library |
 | `yaml-cpp` | YAML config parser |
+| `CUDA` | GPU runtime for TensorRT inference |
+| `TensorRT` | ONNX → TRT engine conversion and inference |
 
 ### Installing RoboticsService
 
@@ -49,7 +51,27 @@ git clone https://github.com/unitreerobotics/unitree_sdk2.git thirdparty/unitree
 sudo apt install libyaml-cpp-dev
 ```
 
-## Build
+### CUDA and TensorRT (via Docker)
+
+Development happens inside a container so the host TRT version doesn't need to
+match. The container ships CUDA 12.6 + TensorRT 10.7, aligning with the Jetson
+(JetPack 6 / TRT 10.7) deployment target.
+
+```bash
+./docker/build_dev.sh    # build image (one-time)
+./docker/run_dev.sh      # enter container
+```
+
+Inside the container:
+
+```bash
+cmake -B build && cmake --build build
+```
+
+## Build (native, non-TRT targets only)
+
+If you don't need TensorRT (e.g. developing PicoVR / DDS / InputHandler), you
+can build on the host directly:
 
 ```bash
 cmake -B build && cmake --build build
