@@ -44,7 +44,7 @@ static void pxrea_callback(void*, PXREAClientCallbackType type, int, void* user_
         if (value.contains("Body")) {
             auto& body = value["Body"];
             if (body.contains("joints") && body["joints"].is_array()) {
-                BodyPose pose;
+                PicoVRBodyPose pose;
                 pose.timestamp_ns = body.value("timeStampNs", int64_t{0});
 
                 auto& joints = body["joints"];
@@ -58,7 +58,7 @@ static void pxrea_callback(void*, PXREAClientCallbackType type, int, void* user_
         }
 
         // ── Controller ────────────────────────────────────────────────────
-        ControllerState ctrl;
+        PicoVRController ctrl;
         bool ctrl_updated = false;
 
         if (value["Controller"].contains("left")) {
@@ -132,12 +132,12 @@ void PicoVRReader::watchdog_loop() {
     }
 }
 
-void PicoVRReader::on_body_update(const BodyPose& pose) {
+void PicoVRReader::on_body_update(const PicoVRBodyPose& pose) {
     connected = true;
     body_buf.SetData(pose);
 }
 
-void PicoVRReader::on_controller_update(const ControllerState& ctrl) {
+void PicoVRReader::on_controller_update(const PicoVRController& ctrl) {
     ctrl_buf.SetData(ctrl);
 }
 

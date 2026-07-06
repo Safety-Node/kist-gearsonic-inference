@@ -18,6 +18,16 @@ add_library(pico_vr_reader STATIC
 target_include_directories(pico_vr_reader PUBLIC include)
 target_link_libraries(pico_vr_reader PUBLIC pxrea)
 
+# ─── input_handler ───────────────────────────────────────────────────────────
+add_library(input_handler STATIC
+    src/motion/input_handler.cpp
+)
+target_include_directories(input_handler PUBLIC include)
+target_link_libraries(input_handler PUBLIC pico_vr_reader)
+
 # ─── tests ────────────────────────────────────────────────────────────────────
 add_executable(test_pico_vr_reader test/test_pico_vr_reader.cpp)
 target_link_libraries(test_pico_vr_reader PRIVATE pico_vr_reader)
+
+add_executable(test_input_handler test/test_input_handler.cpp)
+target_link_libraries(test_input_handler PRIVATE input_handler)
