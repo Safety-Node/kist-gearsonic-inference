@@ -46,6 +46,6 @@ cmake -B build && cmake --build build
 ## Run
 
 ```bash
-export LD_LIBRARY_PATH=$(pwd)/thirdparty/pxrea/lib:$LD_LIBRARY_PATH
+source env.sh
 ./build/test_pico_vr_reader
 ```
