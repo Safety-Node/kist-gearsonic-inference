@@ -26,18 +26,15 @@ sudo dpkg -i XRoboToolkit_PC_Service_1.0.0_ubuntu_22.04_amd64.deb
 ### Installing libPXREARobotSDK
 
 ```bash
-git clone https://github.com/XR-Robotics/XRoboToolkit-PC-Service-Pybind.git
-cd XRoboToolkit-PC-Service-Pybind
-
 git clone https://github.com/XR-Robotics/XRoboToolkit-PC-Service.git
 cd XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK
 bash build.sh
 cd ../../..
 
-mkdir -p ../thirdparty/pxrea/lib ../thirdparty/pxrea/include
-cp XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/PXREARobotSDK.h ../thirdparty/pxrea/include/
-cp -r XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/nlohmann ../thirdparty/pxrea/include/nlohmann/
-cp XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build/libPXREARobotSDK.so ../thirdparty/pxrea/lib/
+mkdir -p thirdparty/pxrea/lib thirdparty/pxrea/include
+cp XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/PXREARobotSDK.h thirdparty/pxrea/include/
+cp -r XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/nlohmann thirdparty/pxrea/include/nlohmann/
+cp XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build/libPXREARobotSDK.so thirdparty/pxrea/lib/
 ```
 
 ## Build
