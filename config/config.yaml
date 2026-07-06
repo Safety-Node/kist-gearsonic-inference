@@ -1,0 +1,6 @@
+unitree:
+  # DDS domain id (default 0; change to isolate multiple robots on one network)
+  domain_id: 0
+  # Network interface connected to the robot (e.g. eno1, enp0s31f6)
+  # Use "lo" for simulation.
+  network_interface: eno2

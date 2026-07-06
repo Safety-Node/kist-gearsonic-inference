@@ -12,10 +12,10 @@ C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid rob
 |---|---|
 | `XRoboToolkit` | PICO VR PC daemon |
 | `libPXREARobotSDK` | PICO VR C++ client library |
+| `unitree_sdk2` | Unitree G1 DDS client library |
+| `yaml-cpp` | YAML config parser |
 
 ### Installing RoboticsService
-
-**Ubuntu 22.04 x86_64**
 
 ```bash
 wget https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases/download/v1.0.0/XRoboToolkit_PC_Service_1.0.0_ubuntu_22.04_amd64.deb
@@ -35,6 +35,18 @@ cd ../../../..
 cp thirdparty/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/PXREARobotSDK.h thirdparty/pxrea/include/
 cp -r thirdparty/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/nlohmann thirdparty/pxrea/include/nlohmann/
 cp thirdparty/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build/libPXREARobotSDK.so thirdparty/pxrea/lib/
+```
+
+### Installing unitree_sdk2
+
+```bash
+git clone https://github.com/unitreerobotics/unitree_sdk2.git thirdparty/unitree_sdk2
+```
+
+### Installing yaml-cpp
+
+```bash
+sudo apt install libyaml-cpp-dev
 ```
 
 ## Build
