@@ -1,3 +1,7 @@
 build/
-thirdparty/
+thirdparty/*
+!thirdparty/picosha2/
 *.deb
+*.onnx
+*.engine
+*.trt
