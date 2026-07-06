@@ -8,13 +8,13 @@
 
 namespace kist {
 
-struct BodyPose {
+struct PicoVRBodyPose {
     // 24 SMPL joints, each [x, y, z, qx, qy, qz, qw]
     std::array<std::array<double, 7>, 24> joints{};
     int64_t timestamp_ns{0};
 };
 
-struct ControllerState {
+struct PicoVRController {
     std::array<double, 2> left_axis{0.0, 0.0};   // joystick [x, y]
     std::array<double, 2> right_axis{0.0, 0.0};  // joystick [x, y]
     bool btn_a{false};   // right primary
@@ -38,12 +38,12 @@ public:
     std::atomic<bool> connected{false};
 
     // ── data buffers (read from any thread) ────────────────────
-    DataBuffer<BodyPose>        body_buf;
-    DataBuffer<ControllerState> ctrl_buf;
+    DataBuffer<PicoVRBodyPose>        body_buf;
+    DataBuffer<PicoVRController> ctrl_buf;
 
     // ── internal: called from SDK callback ─────────────────────
-    void on_body_update(const BodyPose& pose);
-    void on_controller_update(const ControllerState& ctrl);
+    void on_body_update(const PicoVRBodyPose& pose);
+    void on_controller_update(const PicoVRController& ctrl);
 
 private:
     PicoVRReader() = default;
