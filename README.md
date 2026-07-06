@@ -10,8 +10,8 @@ C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid rob
 
 | Package | Purpose |
 |---|---|
-| `RoboticsService` | XRoboToolkit PC Service daemon — handles Wi-Fi connection to PICO VR hardware |
-| `libPXREARobotSDK.so` | C++ client library for PICO VR data — bundled in `thirdparty/pxrea/` |
+| `RoboticsService` | PICO VR PC daemon |
+| `libPXREARobotSDK.so` | PICO VR C++ client library |
 
 ### Installing RoboticsService
 
