@@ -7,7 +7,8 @@
 int main() {
     auto& reader = kist::PicoVRReader::instance();
 
-    if (!reader.init())
+    reader.start();
+    if (!reader.connected)
         return 1;
 
     std::cout << "Waiting for PICO VR data... (Ctrl+C to exit)\n";
@@ -17,18 +18,13 @@ int main() {
         auto ctrl    = reader.ctrl_buf.GetData();
 
         if (body_ts.HasData()) {
-            double age_ms = body_ts.GetAgeMs();
-            if (age_ms > 500.0) {
-                std::cout << "[Body] stale (" << age_ms << "ms)\n";
-            } else {
-                std::cout << "[Body] age=" << age_ms << "ms\n";
-                for (int i = 0; i < 24; i++) {
-                    auto& j = body_ts.data->joints[i];
-                    std::cout << "  joint[" << i << "] pos=("
-                              << std::fixed << std::setprecision(6)
-                              << j[0] << ", " << j[1] << ", " << j[2] << ")"
-                              << "  quat=(" << j[3] << ", " << j[4] << ", " << j[5] << ", " << j[6] << ")\n";
-                }
+            std::cout << "[Body] age=" << body_ts.GetAgeMs() << "ms\n";
+            for (int i = 0; i < 24; i++) {
+                auto& j = body_ts.data->joints[i];
+                std::cout << "  joint[" << i << "] pos=("
+                          << std::fixed << std::setprecision(6)
+                          << j[0] << ", " << j[1] << ", " << j[2] << ")"
+                          << "  quat=(" << j[3] << ", " << j[4] << ", " << j[5] << ", " << j[6] << ")\n";
             }
         } else {
             std::cout << "[Body] waiting...\n";
@@ -48,6 +44,6 @@ int main() {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
-    reader.deinit();
+    reader.stop();
     return 0;
 }

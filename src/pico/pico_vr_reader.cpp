@@ -5,6 +5,7 @@
 
 #include <sstream>
 #include <iostream>
+#include <chrono>
 
 using json = nlohmann::json;
 
@@ -95,20 +96,44 @@ PicoVRReader& PicoVRReader::instance() {
     return inst;
 }
 
-bool PicoVRReader::init() {
+void PicoVRReader::start() {
     if (PXREAInit(nullptr, pxrea_callback, PXREAFullMask) != 0) {
         std::cerr << "[PicoVRReader] PXREAInit failed\n";
-        return false;
+        return;
     }
-    std::cout << "[PicoVRReader] initialized\n";
-    return true;
+    connected = true;
+    stop_watchdog_ = false;
+    watchdog_thread_ = std::thread(&PicoVRReader::watchdog_loop, this);
+    std::cout << "[PicoVRReader] started\n";
 }
 
-void PicoVRReader::deinit() {
+void PicoVRReader::stop() {
+    connected = false;
+    stop_watchdog_ = true;
+    if (watchdog_thread_.joinable())
+        watchdog_thread_.join();
     PXREADeinit();
 }
 
+void PicoVRReader::watchdog_loop() {
+    using namespace std::chrono_literals;
+    constexpr double stale_ms = 50.0;
+
+    while (!stop_watchdog_) {
+        std::this_thread::sleep_for(10ms);
+
+        auto ts = body_buf.GetDataWithTime();
+        if (ts.HasData() && ts.GetAgeMs() > stale_ms) {
+            std::cerr << "[PicoVRReader] stale — disconnected\n";
+            connected = false;
+            body_buf.Clear();
+            ctrl_buf.Clear();
+        }
+    }
+}
+
 void PicoVRReader::on_body_update(const BodyPose& pose) {
+    connected = true;
     body_buf.SetData(pose);
 }
 

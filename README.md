@@ -1,1 +1,54 @@
 # kist-gearsonic-inference
+
+C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid robot.
+
+## Architecture
+
+<!-- architecture image here -->
+
+## Dependencies
+
+| Package | Purpose |
+|---|---|
+| `RoboticsService` | XRoboToolkit PC Service daemon — handles Wi-Fi connection to PICO VR hardware |
+| `libPXREARobotSDK.so` | C++ client library for PICO VR data — bundled in `thirdparty/pxrea/` |
+| `nlohmann/json` | JSON parsing — bundled in `thirdparty/pxrea/include/` |
+
+### Installing RoboticsService
+
+**Ubuntu 22.04 x86_64**
+
+```bash
+wget https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases/download/v1.0.0/XRoboToolkit_PC_Service_1.0.0_ubuntu_22.04_amd64.deb
+sudo dpkg -i XRoboToolkit_PC_Service_1.0.0_ubuntu_22.04_amd64.deb
+```
+
+### Installing libPXREARobotSDK
+
+```bash
+git clone https://github.com/XR-Robotics/XRoboToolkit-PC-Service-Pybind.git
+cd XRoboToolkit-PC-Service-Pybind
+
+git clone https://github.com/XR-Robotics/XRoboToolkit-PC-Service.git
+cd XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK
+bash build.sh
+cd ../../..
+
+mkdir -p ../thirdparty/pxrea/lib ../thirdparty/pxrea/include
+cp XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/PXREARobotSDK.h ../thirdparty/pxrea/include/
+cp -r XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/nlohmann ../thirdparty/pxrea/include/nlohmann/
+cp XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build/libPXREARobotSDK.so ../thirdparty/pxrea/lib/
+```
+
+## Build
+
+```bash
+cmake -B build && cmake --build build
+```
+
+## Run
+
+```bash
+export LD_LIBRARY_PATH=$(pwd)/thirdparty/pxrea/lib:$LD_LIBRARY_PATH
+./build/test_pico_vr_reader
+```

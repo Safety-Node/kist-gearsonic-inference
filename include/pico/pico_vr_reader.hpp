@@ -4,6 +4,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <thread>
 
 namespace kist {
 
@@ -28,20 +29,29 @@ struct ControllerState {
 
 class PicoVRReader {
 public:
+    // ── lifecycle ──────────────────────────────────────────────
     static PicoVRReader& instance();
+    void                 start();
+    void                 stop();
 
-    bool init();
-    void deinit();
+    // ── state ──────────────────────────────────────────────────
+    std::atomic<bool> connected{false};
 
-    DataBuffer<BodyPose>       body_buf;
+    // ── data buffers (read from any thread) ────────────────────
+    DataBuffer<BodyPose>        body_buf;
     DataBuffer<ControllerState> ctrl_buf;
 
-    // Internal: called from SDK callback
+    // ── internal: called from SDK callback ─────────────────────
     void on_body_update(const BodyPose& pose);
     void on_controller_update(const ControllerState& ctrl);
 
 private:
     PicoVRReader() = default;
+
+    void watchdog_loop();
+
+    std::thread       watchdog_thread_;
+    std::atomic<bool> stop_watchdog_{false};
 };
 
 } // namespace kist
