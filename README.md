@@ -43,9 +43,8 @@ cp thirdparty/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build/libPXR
 cmake -B build && cmake --build build
 ```
 
-## Run
+## Environment
 
 ```bash
 source env.sh
-./build/test_pico_vr_reader
 ```
