@@ -212,7 +212,7 @@ void PicoVRReader::stop() {
 
 void PicoVRReader::watchdog_loop() {
     using namespace std::chrono_literals;
-    constexpr double stale_ms = 75.0;  // 5 frames at 70Hz (worst case, low battery)
+    constexpr double stale_ms = 145.0;  // 10 frames at 70Hz (worst case, low battery)
 
     while (!stop_watchdog_) {
         std::this_thread::sleep_for(14ms);
