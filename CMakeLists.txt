@@ -32,6 +32,13 @@ add_library(unitree_state_reader STATIC
 target_include_directories(unitree_state_reader PUBLIC include)
 target_link_libraries(unitree_state_reader PUBLIC unitree_sdk2)
 
+# ─── unitree_command_writer ──────────────────────────────────────────────────
+add_library(unitree_command_writer STATIC
+    src/unitree/unitree_command_writer.cpp
+)
+target_include_directories(unitree_command_writer PUBLIC include)
+target_link_libraries(unitree_command_writer PUBLIC unitree_sdk2 unitree_state_reader)
+
 # ─── tensorrt_inference ──────────────────────────────────────────────────────
 add_library(tensorrt_inference STATIC
     src/tensorrt/InferenceEngine.cpp
@@ -103,3 +110,13 @@ set_target_properties(test_obs_dict_model PROPERTIES CXX_STANDARD 20)
 add_executable(test_control_dry test/test_control_dry.cpp)
 target_link_libraries(test_control_dry PRIVATE control yaml-cpp)
 set_target_properties(test_control_dry PROPERTIES CXX_STANDARD 20)
+
+add_executable(test_control_live test/test_control_live.cpp)
+target_link_libraries(test_control_live PRIVATE control unitree_command_writer yaml-cpp)
+set_target_properties(test_control_live PROPERTIES CXX_STANDARD 20)
+
+add_executable(lowcmd_monitor test/lowcmd_monitor.cpp)
+target_link_libraries(lowcmd_monitor PRIVATE unitree_state_reader yaml-cpp)
+
+add_executable(release_motion_service test/release_motion_service.cpp)
+target_link_libraries(release_motion_service PRIVATE unitree_state_reader yaml-cpp)

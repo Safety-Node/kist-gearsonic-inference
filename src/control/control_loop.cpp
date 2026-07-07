@@ -1,6 +1,7 @@
 #include "control/control_loop.hpp"
 #include "common/joint_order.hpp"
 #include "common/math_utils.hpp"
+#include "common/thread_priority.hpp"
 #include "planner/planner_inference.hpp"
 #include "unitree/unitree_state_reader.hpp"
 
@@ -32,6 +33,7 @@ bool ControlLoop::start(const std::string& encoder_path, const std::string& deco
 
     stop_        = false;
     loop_thread_ = std::thread(&ControlLoop::loop, this);
+    try_realtime_priority(loop_thread_, 80, "ControlLoop");
     std::cout << "[ControlLoop] started (50 Hz)\n";
     return true;
 }
@@ -60,6 +62,17 @@ bool ControlLoop::check_safety() {
         return false;
     }
     return true;
+}
+
+// On any safety failure, overwrite the outgoing command with zero-torque
+// damping so the (running) writer never keeps publishing a stale target.
+void ControlLoop::publish_damping() {
+    MotorCommand damping;
+    for (int i = 0; i < 29; ++i) {
+        damping.kp[i] = 0.0f;
+        damping.kd[i] = 8.0f;
+    }
+    motor_command_buf.SetData(damping);
 }
 
 bool ControlLoop::gather_robot_state() {
@@ -94,16 +107,13 @@ void ControlLoop::tick_init() {
     if (!st)
         return;
 
-    if (!init_captured_) {
-        for (int i = 0; i < 29; ++i)
-            init_start_q_[i] = st->motors[i].q;
-        init_captured_ = true;
-    }
-
+    // Interpolate from the *live measured* position each tick (gear_sonic
+    // InitControl): the target stays near the actual pose all the way, so
+    // tracking error — and the torque it commands — stays small.
     double ratio = std::clamp(double(init_ticks_) / kInitTicks, 0.0, 1.0);
     MotorCommand cmd;
     for (int i = 0; i < 29; ++i) {
-        cmd.q_target[i] = static_cast<float>(init_start_q_[i] * (1.0 - ratio) +
+        cmd.q_target[i] = static_cast<float>(st->motors[i].q * (1.0 - ratio) +
                                              g1_default_angles[i] * ratio);
         cmd.kp[i] = g1_kps[i];
         cmd.kd[i] = g1_kds[i];
@@ -180,6 +190,7 @@ void ControlLoop::tick_control() {
     auto t0 = clock::now();
 
     if (!gather_robot_state()) {
+        publish_damping();
         state_ = State::WAIT_FOR_CONTROL;
         return;
     }
@@ -247,6 +258,7 @@ void ControlLoop::loop() try {
         auto t0 = clock::now();
 
         if (!check_safety()) {
+            publish_damping();
             std::this_thread::sleep_until(t0 + period);
             continue;
         }

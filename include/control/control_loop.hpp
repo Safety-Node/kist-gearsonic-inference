@@ -52,6 +52,7 @@ private:
 
     void loop();
     bool check_safety();
+    void publish_damping();
     bool gather_robot_state();
     void tick_init();
     void tick_control();
@@ -70,9 +71,7 @@ private:
     std::chrono::steady_clock::time_point last_plan_stamp_{};
 
     // INIT ramp
-    std::array<double, 29> init_start_q_{};
-    int  init_ticks_{0};
-    bool init_captured_{false};
+    int init_ticks_{0};
 
     std::array<double, 29> last_action_{};   // raw policy output (IsaacLab order)
 

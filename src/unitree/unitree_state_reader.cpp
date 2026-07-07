@@ -26,6 +26,7 @@ static IMU convert(const unitree_hg::msg::dds_::IMUState_& src) {
 static UnitreeState convert(const unitree_hg::msg::dds_::LowState_& src) {
     UnitreeState out;
     out.tick = src.tick();
+    out.mode_machine = src.mode_machine();
     out.imu_pelvis = convert(src.imu_state());
     const auto& motors = src.motor_state();
     for (int i = 0; i < kNumMotors; ++i) {

@@ -9,6 +9,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 docker run --rm -it \
     --gpus all \
     --network host \
+    --cap-add=SYS_NICE \
     -v "${REPO_DIR}:/workspace/kist-gearsonic-inference" \
     -v /opt/apps/roboticsservice:/opt/apps/roboticsservice:ro \
     -w /workspace/kist-gearsonic-inference \
