@@ -127,20 +127,20 @@ void PlannerInference::initialize_context(const std::array<double, MotionSequenc
 
 // ─── context sampling (matches gear_sonic UpdateContextFromMotion) ────────────
 
-void PlannerInference::update_context_from_motion() {
+void PlannerInference::update_context_from_motion(const MotionSequence50Hz& motion) {
     double gen_time = double(gen_frame_) / 50.0;
 
     for (int n = 0; n < kContextFrames; ++n) {
         double t      = gen_time + double(n) / 30.0;
         double f_50hz = t * 50.0;
         int    f0     = static_cast<int>(std::floor(f_50hz));
-        f0            = std::clamp(f0, 0, motion_seq_.timesteps - 1);
-        int    f1     = std::min(f0 + 1, motion_seq_.timesteps - 1);
+        f0            = std::clamp(f0, 0, motion.timesteps - 1);
+        int    f1     = std::min(f0 + 1, motion.timesteps - 1);
         double w1     = f_50hz - std::floor(f_50hz);
         double w0     = 1.0 - w1;
 
-        const auto& a = motion_seq_.frames[f0];
-        const auto& b = motion_seq_.frames[f1];
+        const auto& a = motion.frames[f0];
+        const auto& b = motion.frames[f1];
         auto q        = quat_slerp(a.quaternion, b.quaternion, w1);
 
         float* dst = context_.data() + n * kQposDim;
@@ -350,13 +350,25 @@ void PlannerInference::loop() try {
                  static_cast<float>(ms->facing_direction[1]),
                  static_cast<float>(ms->facing_direction[2])});
 
-            // gen_frame ~ 50Hz frames the consumer has advanced since the last
-            // publish. TODO(TASK-6): replace with the control loop's playback
-            // cursor into the blended motion, as gear_sonic does.
-            auto elapsed_s = std::chrono::duration<double>(t0 - last_publish_).count();
-            gen_frame_ = static_cast<int>(elapsed_s * 50.0) + kLookAheadSteps;
-
-            update_context_from_motion();
+            // Context source: the control loop's blended motion at its actual
+            // playback cursor when available (gear_sonic UpdatePlanning
+            // semantics); otherwise our own last output + wall-clock estimate.
+            MotionSequence50Hz snapshot;
+            int  cursor        = 0;
+            bool have_snapshot = false;
+            {
+                std::lock_guard<std::mutex> lock(provider_mutex_);
+                if (playback_provider_)
+                    have_snapshot = playback_provider_(snapshot, cursor);
+            }
+            if (have_snapshot) {
+                gen_frame_ = cursor + kLookAheadSteps;
+                update_context_from_motion(snapshot);
+            } else {
+                auto elapsed_s = std::chrono::duration<double>(t0 - last_publish_).count();
+                gen_frame_ = static_cast<int>(elapsed_s * 50.0) + kLookAheadSteps;
+                update_context_from_motion(motion_seq_);
+            }
             run_and_publish();
         }
 

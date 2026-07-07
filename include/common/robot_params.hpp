@@ -173,16 +173,4 @@ inline constexpr std::array<double, 29> g1_default_angles = {
      0.0,    // right_wrist_yaw
 };
 
-// ─── motor command (control loop → command writer interface) ─────────────────
-
-// Written into a DataBuffer<MotorCommand> by the 50Hz control loop and
-// consumed by the (future) 500Hz LowCmd writer. MuJoCo/DDS motor order.
-struct MotorCommand {
-    std::array<float, 29> q_target{};
-    std::array<float, 29> dq_target{};
-    std::array<float, 29> kp{};
-    std::array<float, 29> kd{};
-    std::array<float, 29> tau_ff{};
-};
-
 } // namespace kist

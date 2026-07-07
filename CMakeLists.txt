@@ -67,6 +67,8 @@ target_link_libraries(input_handler PUBLIC pico_vr_reader)
 # ─── control ─────────────────────────────────────────────────────────────────
 add_library(control STATIC
     src/control/obs_dict_model.cpp
+    src/control/observation.cpp
+    src/control/control_loop.cpp
 )
 target_include_directories(control PUBLIC include)
 target_link_libraries(control PUBLIC tensorrt_inference planner_inference unitree_state_reader)
@@ -97,3 +99,7 @@ set_target_properties(test_planner_live PROPERTIES CXX_STANDARD 20)
 add_executable(test_obs_dict_model test/test_obs_dict_model.cpp)
 target_link_libraries(test_obs_dict_model PRIVATE control yaml-cpp)
 set_target_properties(test_obs_dict_model PROPERTIES CXX_STANDARD 20)
+
+add_executable(test_control_dry test/test_control_dry.cpp)
+target_link_libraries(test_control_dry PRIVATE control yaml-cpp)
+set_target_properties(test_control_dry PROPERTIES CXX_STANDARD 20)
