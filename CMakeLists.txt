@@ -49,6 +49,14 @@ target_link_libraries(tensorrt_inference PUBLIC
 )
 set_target_properties(tensorrt_inference PROPERTIES CXX_STANDARD 20)
 
+# ─── planner_inference ───────────────────────────────────────────────────────
+add_library(planner_inference STATIC
+    src/planner/planner_inference.cpp
+)
+target_include_directories(planner_inference PUBLIC include)
+target_link_libraries(planner_inference PUBLIC tensorrt_inference input_handler unitree_state_reader)
+set_target_properties(planner_inference PROPERTIES CXX_STANDARD 20)
+
 # ─── input_handler ───────────────────────────────────────────────────────────
 add_library(input_handler STATIC
     src/motion/input_handler.cpp
@@ -69,3 +77,11 @@ target_link_libraries(test_unitree_state_reader PRIVATE unitree_state_reader yam
 add_executable(test_trt_inference test/test_trt_inference.cpp)
 target_link_libraries(test_trt_inference PRIVATE tensorrt_inference)
 set_target_properties(test_trt_inference PROPERTIES CXX_STANDARD 20)
+
+add_executable(test_planner_inference test/test_planner_inference.cpp)
+target_link_libraries(test_planner_inference PRIVATE planner_inference yaml-cpp)
+set_target_properties(test_planner_inference PROPERTIES CXX_STANDARD 20)
+
+add_executable(test_planner_live test/test_planner_live.cpp)
+target_link_libraries(test_planner_live PRIVATE planner_inference yaml-cpp)
+set_target_properties(test_planner_live PROPERTIES CXX_STANDARD 20)
