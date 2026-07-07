@@ -109,6 +109,13 @@ void InputHandler::loop() {
             }
 
             movement_buf.SetData(MovementState(final_mode, final_move, final_face, final_speed, -1.0));
+        } else {
+            // VR link lost (stale watchdog cleared ctrl_buf) → safe stop:
+            // IDLE with mode-default speed/height. Keep the current facing so
+            // the robot doesn't turn toward yaw 0 while idling.
+            std::array<double, 3> face{std::cos(facing_angle_), std::sin(facing_angle_), 0.0};
+            movement_buf.SetData(MovementState(
+                static_cast<int>(LocomotionMode::IDLE), {0.0, 0.0, 0.0}, face, -1.0, -1.0));
         }
 
         std::this_thread::sleep_until(t0 + period);

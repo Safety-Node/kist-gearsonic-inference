@@ -17,7 +17,7 @@ C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid rob
 | `CUDA` | GPU runtime for TensorRT inference |
 | `TensorRT` | ONNX → TRT engine conversion and inference |
 
-### Installing RoboticsService
+### Installing XRoboToolkit
 
 ```bash
 wget https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases/download/v1.0.0/XRoboToolkit_PC_Service_1.0.0_ubuntu_22.04_amd64.deb
@@ -49,32 +49,6 @@ git clone https://github.com/unitreerobotics/unitree_sdk2.git thirdparty/unitree
 
 ```bash
 sudo apt install libyaml-cpp-dev
-```
-
-### CUDA and TensorRT (via Docker)
-
-Development happens inside a container so the host TRT version doesn't need to
-match. The container ships CUDA 12.6 + TensorRT 10.7, aligning with the Jetson
-(JetPack 6 / TRT 10.7) deployment target.
-
-```bash
-./docker/build_dev.sh    # build image (one-time)
-./docker/run_dev.sh      # enter container
-```
-
-Inside the container:
-
-```bash
-cmake -B build && cmake --build build
-```
-
-## Build (native, non-TRT targets only)
-
-If you don't need TensorRT (e.g. developing PicoVR / DDS / InputHandler), you
-can build on the host directly:
-
-```bash
-cmake -B build && cmake --build build
 ```
 
 ## Environment
