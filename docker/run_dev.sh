@@ -10,5 +10,6 @@ docker run --rm -it \
     --gpus all \
     --network host \
     -v "${REPO_DIR}:/workspace/kist-gearsonic-inference" \
+    -v /opt/apps/roboticsservice:/opt/apps/roboticsservice:ro \
     -w /workspace/kist-gearsonic-inference \
     kist-inference-dev
