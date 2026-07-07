@@ -4,3 +4,13 @@ unitree:
   # Network interface connected to the robot (e.g. eno1, enp0s31f6)
   # Use "lo" for simulation.
   network_interface: eno2
+
+planner:
+  # ONNX file; the wrapper caches the built engine next to it as .trt
+  model_path: models/planner_sonic.onnx
+  # TensorRT precision: fp16 or fp32
+  precision: fp16
+  # Default standing height used for the initial context (gear_sonic default)
+  default_height: 0.788740
+  # Random seed fed to the planner model (gear_sonic initial_random_seed)
+  initial_random_seed: 1234

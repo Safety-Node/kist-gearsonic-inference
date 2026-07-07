@@ -34,6 +34,17 @@ enum class LocomotionMode {
     SCARE_WALK            = 26,
 };
 
+// Static modes hold a pose in place; the planner never replans them on a
+// timer, only on explicit command changes (matches gear_sonic).
+inline constexpr bool is_static_motion_mode(LocomotionMode mode) {
+    return mode == LocomotionMode::IDLE ||
+           mode == LocomotionMode::IDEL_SQUAT ||
+           mode == LocomotionMode::IDEL_KNEEL_TWO_LEGS ||
+           mode == LocomotionMode::IDEL_KNEEL ||
+           mode == LocomotionMode::IDEL_LYING_FACE_DOWN ||
+           mode == LocomotionMode::IDEL_BOXING;
+}
+
 struct MovementState {
     int                   locomotion_mode{0};
     std::array<double, 3> movement_direction{0.0, 0.0, 0.0};
