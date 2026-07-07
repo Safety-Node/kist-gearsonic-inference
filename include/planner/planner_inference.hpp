@@ -9,6 +9,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <functional>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -29,6 +31,17 @@ public:
     // and its blend point are always read together atomically.
     DataBuffer<MotionSequence50Hz> motion_50hz_buf;
 
+    // ── playback provider (control loop -> planner context) ────
+    // When set, replans sample their context from the consumer's blended
+    // motion at its actual playback cursor (gear_sonic UpdatePlanning
+    // semantics). Without it, falls back to the planner's own last output
+    // and a wall-clock cursor estimate.
+    using PlaybackProvider = std::function<bool(MotionSequence50Hz&, int&)>;
+    void set_playback_provider(PlaybackProvider provider) {
+        std::lock_guard<std::mutex> lock(provider_mutex_);
+        playback_provider_ = std::move(provider);
+    }
+
 private:
     PlannerInference() = default;
 
@@ -40,7 +53,7 @@ private:
                            const std::array<float, 3>& facing_direction);
     bool run_and_publish();
     void initialize_context(const std::array<double, MotionSequence50Hz::kNumJoints>& joint_positions);
-    void update_context_from_motion();
+    void update_context_from_motion(const MotionSequence50Hz& motion);
     bool resample_30hz_to_50hz(const float* mujoco_qpos, int num_pred_frames);
 
     TRTInferenceEngine engine_;
@@ -75,6 +88,9 @@ private:
     std::chrono::steady_clock::time_point last_publish_;
 
     static constexpr int kLookAheadSteps = 2;  // gear_sonic default (40 ms at 50Hz)
+
+    std::mutex       provider_mutex_;
+    PlaybackProvider playback_provider_;
 
     std::thread       loop_thread_;
     std::atomic<bool> stop_{false};

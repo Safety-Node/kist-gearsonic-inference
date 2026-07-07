@@ -16,8 +16,9 @@ struct MotorState {
 
 struct UnitreeState {
     std::array<MotorState, kNumMotors> motors{};
-    IMU      imu_pelvis{}; // pelvis IMU (from LowState.imu_state)
+    IMU      imu_pelvis{};    // pelvis IMU (from LowState.imu_state)
     uint32_t tick{0};
+    uint8_t  mode_machine{0}; // robot variant code (echoed back in LowCmd)
 };
 
 } // namespace kist

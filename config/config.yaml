@@ -14,3 +14,9 @@ planner:
   default_height: 0.788740
   # Random seed fed to the planner model (gear_sonic initial_random_seed)
   initial_random_seed: 1234
+
+control:
+  # Encoder: motion observation [1762] -> token [64]
+  encoder_path: models/model_encoder.onnx
+  # Decoder (policy): observation [994] -> joint action [29]
+  decoder_path: models/model_decoder.onnx
