@@ -14,7 +14,8 @@ static constexpr double kSpeedMin[]      = { -1.0, 0.1, 0.8, 2.5 };
 static constexpr double kSpeedMax[]      = { -1.0, 0.8, 2.5, 7.5 };
 static constexpr double kSpeedStep  = 0.1;
 static constexpr double kDeadZone   = 0.05;
-static constexpr double kFacingStep = 0.02;
+static constexpr double kFacingRate = 1.5;    // rad/s at full stick (gear_sonic yaw_gain)
+static constexpr double kLoopDt     = 0.002;  // 500Hz
 
 InputHandler& InputHandler::instance() {
     static InputHandler inst;
@@ -88,7 +89,7 @@ void InputHandler::loop() {
 
             // ── facing angle ──────────────────────────────────────
             if (std::abs(rx) > kDeadZone)
-                facing_angle_ -= kFacingStep * rx;
+                facing_angle_ -= kFacingRate * rx * kLoopDt;
 
             // ── build MovementState ───────────────────────────────
             int                   final_mode  = kStandingSet[mode_index_];
