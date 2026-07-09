@@ -24,6 +24,11 @@ static constexpr double kHeightSeed   = 0.8;   // on entering a crouch mode (gea
 static constexpr double kHeightMin    = 0.1;   // gear_sonic clamp
 static constexpr double kHeightMax    = 0.8;
 static constexpr double kHeightRate   = 0.3;   // m/s while held
+// E-stop gesture: both grips squeezed hard for a full second. High
+// threshold + both hands + hold time make accidental triggering unlikely
+// while matching the panic reflex of clenching the controllers.
+static constexpr double kEstopGrip      = 0.8;
+static constexpr int    kEstopHoldTicks = 500;  // 1s at 500Hz
 static constexpr double kDeadZone   = 0.15;   // gear_sonic JOYSTICK_DEADZONE
 static constexpr double kFacingRate = 1.5;    // rad/s at full stick (gear_sonic yaw_gain)
 static constexpr double kLoopDt     = 0.002;  // 500Hz
@@ -60,9 +65,18 @@ void InputHandler::loop() {
             double ly = ctrl->left_axis[1];
             double rx = ctrl->right_axis[0];
 
+            // ── emergency stop (latched) ──────────────────────────
+            if (ctrl->left_grip > kEstopGrip && ctrl->right_grip > kEstopGrip) {
+                if (++estop_hold_ticks_ >= kEstopHoldTicks && !estop_) {
+                    estop_ = true;
+                    std::cerr << "[InputHandler] EMERGENCY STOP (grips held)\n";
+                }
+            } else {
+                estop_hold_ticks_ = 0;
+            }
+
             // ── button edge detection ─────────────────────────────
             btn_a_.update(ctrl->btn_a);
-            btn_b_.update(ctrl->btn_b);
             btn_x_.update(ctrl->btn_x);
             btn_y_.update(ctrl->btn_y);
 
@@ -70,12 +84,9 @@ void InputHandler::loop() {
             bool trigger_held = ctrl->left_trigger > kTriggerHeld ||
                                 ctrl->right_trigger > kTriggerHeld;
 
-            if (!trigger_held) {  // with a trigger held, A/B become height buttons
-                if (btn_a_.on_press)
-                    mode_index_ = static_cast<int>(LocomotionMode::IDLE);  // escape from anywhere
-                if (btn_b_.on_press)
-                    mode_index_ = static_cast<int>(LocomotionMode::SLOW_WALK);
-            }
+            // with a trigger held, A becomes the height-down button
+            if (!trigger_held && btn_a_.on_press)
+                mode_index_ = static_cast<int>(LocomotionMode::IDLE);  // escape from anywhere
             if (btn_y_.on_press) {
                 int limit = trigger_held ? kFullModeMax : kBasicModeMax;
                 if (mode_index_ < limit)

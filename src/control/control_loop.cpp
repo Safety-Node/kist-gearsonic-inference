@@ -1,5 +1,6 @@
 #include "control/control_loop.hpp"
 #include "common/joint_order.hpp"
+#include "motion/input_handler.hpp"
 #include "common/math_utils.hpp"
 #include "common/thread_priority.hpp"
 #include "planner/planner_inference.hpp"
@@ -256,6 +257,17 @@ void ControlLoop::loop() try {
 
     while (!stop_) {
         auto t0 = clock::now();
+
+        // Operator e-stop: terminal state — damping every tick, no recovery.
+        if (InputHandler::instance().estop()) {
+            if (state_ != State::ESTOP) {
+                std::cerr << "[ControlLoop] EMERGENCY STOP — damping, control terminated\n";
+                state_ = State::ESTOP;
+            }
+            publish_damping();
+            std::this_thread::sleep_until(t0 + period);
+            continue;
+        }
 
         if (!check_safety()) {
             publish_damping();

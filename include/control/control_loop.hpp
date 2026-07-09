@@ -24,7 +24,7 @@ namespace kist {
 // consumes motor_command_buf; until then running this is inherently dry.
 class ControlLoop {
 public:
-    enum class State { INIT, WAIT_FOR_CONTROL, CONTROL };
+    enum class State { INIT, WAIT_FOR_CONTROL, CONTROL, ESTOP };
 
     static ControlLoop& instance();
     bool start(const std::string& encoder_path, const std::string& decoder_path,
