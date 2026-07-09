@@ -9,10 +9,10 @@
 namespace kist {
 
 // Mode navigation walks the LocomotionMode values linearly (gear_sonic
-// remote scheme, clamped at both ends). Going up past RUN into the advanced
-// modes (squat, crawl, boxing, ...) requires holding a trigger; going down
-// (toward IDLE — always the safer direction) is never gated.
-static constexpr int    kBasicModeMax = static_cast<int>(LocomotionMode::RUN);          // 3
+// remote scheme, clamped at both ends). Going up past WALK — RUN and the
+// advanced modes (squat, crawl, boxing, ...) — requires holding a trigger;
+// going down (toward IDLE — always the safer direction) is never gated.
+static constexpr int    kBasicModeMax = static_cast<int>(LocomotionMode::WALK);         // 2
 static constexpr int    kFullModeMax  = static_cast<int>(LocomotionMode::INJURED_WALK); // 19 (gear_sonic cap)
 static constexpr double kTriggerHeld  = 0.5;
 // Body height is meaningful only in the crouch modes (squat/kneel, 4..6);
