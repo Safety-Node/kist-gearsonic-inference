@@ -128,32 +128,35 @@ PicoVRReader& PicoVRReader::instance() {
     return inst;
 }
 
-void PicoVRReader::start() {
+bool PicoVRReader::start() {
     if (!daemon_port_open()) {
         std::cerr << "[PicoVRReader] XRoboToolkit service not running on port "
                   << kDaemonPort << " — start it on the host first"
                   << " (see README: Running XRoboToolkit)\n";
-        return;
+        return false;
     }
 
     if (PXREAInit(nullptr, pxrea_callback, PXREAFullMask) != 0) {
         std::cerr << "[PicoVRReader] PXREAInit failed\n";
-        return;
+        return false;
     }
-    connected = true;
     stop_watchdog_ = false;
     watchdog_thread_ = std::thread(&PicoVRReader::watchdog_loop, this);
-    std::cout << "[PicoVRReader] started\n";
+    std::cout << "[PicoVRReader] started (waiting for headset data)\n";
+    return true;
 }
 
 void PicoVRReader::stop() {
-    connected = false;
     stop_watchdog_ = true;
     if (watchdog_thread_.joinable())
         watchdog_thread_.join();
     PXREADeinit();
 }
 
+// Each stream is watched independently: a dropped body-tracking stream must
+// not clear fresh controller data (the control chain runs on ctrl alone),
+// and a controller-only session must still clear its buffer when the link
+// dies — InputHandler's safe-stop (IDLE) triggers off an empty ctrl_buf.
 void PicoVRReader::watchdog_loop() {
     using namespace std::chrono_literals;
     constexpr double stale_ms = 145.0;  // 10 frames at 70Hz (worst case, low battery)
@@ -161,18 +164,21 @@ void PicoVRReader::watchdog_loop() {
     while (!stop_watchdog_) {
         std::this_thread::sleep_for(14ms);
 
-        auto ts = body_buf.GetDataWithTime();
-        if (ts.HasData() && ts.GetAgeMs() > stale_ms) {
-            std::cerr << "[PicoVRReader] stale — disconnected\n";
-            connected = false;
+        auto body = body_buf.GetDataWithTime();
+        if (body.HasData() && body.GetAgeMs() > stale_ms) {
+            std::cerr << "[PicoVRReader] body stream stale — cleared\n";
             body_buf.Clear();
+        }
+
+        auto ctrl = ctrl_buf.GetDataWithTime();
+        if (ctrl.HasData() && ctrl.GetAgeMs() > stale_ms) {
+            std::cerr << "[PicoVRReader] controller stream stale — cleared\n";
             ctrl_buf.Clear();
         }
     }
 }
 
 void PicoVRReader::on_body_update(const PicoVRBodyPose& pose) {
-    connected = true;
     body_buf.SetData(pose);
 }
 

@@ -7,8 +7,7 @@
 int main() {
     auto& reader = kist::PicoVRReader::instance();
 
-    reader.start();
-    if (!reader.connected)
+    if (!reader.start())
         return 1;
 
     std::cout << "Waiting for PICO VR data... (Ctrl+C to exit)\n";

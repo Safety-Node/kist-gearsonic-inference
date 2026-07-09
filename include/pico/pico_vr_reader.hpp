@@ -12,15 +12,14 @@ class PicoVRReader {
 public:
     // ── lifecycle ──────────────────────────────────────────────
     static PicoVRReader& instance();
-    void                 start();
+    bool                 start();   // false: daemon absent or SDK init failed
     void                 stop();
 
-    // ── state ──────────────────────────────────────────────────
-    std::atomic<bool> connected{false};
-
     // ── data buffers (read from any thread) ────────────────────
+    // Link liveness is the buffers themselves: the watchdog clears a
+    // stream's buffer when it goes stale, and consumers key off "has data".
     DataBuffer<PicoVRBodyPose>        body_buf;
-    DataBuffer<PicoVRController> ctrl_buf;
+    DataBuffer<PicoVRController>      ctrl_buf;
 
     // ── internal: called from SDK callback ─────────────────────
     void on_body_update(const PicoVRBodyPose& pose);

@@ -45,11 +45,8 @@ int main(int argc, char** argv) {
 
     // ── VR input chain ──────────────────────────────────────────
     auto& vr = kist::PicoVRReader::instance();
-    vr.start();
-    if (!vr.connected) {
-        std::cerr << "VR device not connected\n";
+    if (!vr.start())
         return 1;
-    }
     kist::InputHandler::instance().start();
 
     // ── robot state (read-only DDS subscriber) ──────────────────

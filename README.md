@@ -51,24 +51,19 @@ git clone https://github.com/unitreerobotics/unitree_sdk2.git thirdparty/unitree
 sudo apt install libyaml-cpp-dev
 ```
 
-## Run
+## Build
 
-Our binaries need no environment setup — CMake bakes the SDK library
-paths into each executable's RUNPATH at build time.
+```bash
+cmake -B build && cmake --build build
+```
+
+## Run
 
 ### XRoboToolkit (PICO VR daemon)
 
-The daemon must be running on the **host** before any VR-consuming binary
-starts (they probe port 60061 and fail fast with a clear error if it is
-absent):
-
 ```bash
-source env.sh    # defines run_vr_daemon (the daemon needs its own LD_LIBRARY_PATH)
+source env.sh
 run_vr_daemon
 ```
 
-- Keep exactly **one** daemon running; our binaries connect to it via
-  localhost (the dev container uses host networking).
-- Closing the terminal that launched it may kill the daemon (SIGHUP);
-  use `nohup` if it should survive.
-- After the daemon is up, connect the headset from its XRoboToolkit app.
+Connect the headset from its XRoboToolkit app.
