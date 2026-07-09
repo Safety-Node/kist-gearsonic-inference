@@ -6,7 +6,7 @@
 #include "control/obs_dict_model.hpp"
 #include "control/observation.hpp"
 #include "control/state_logger.hpp"
-#include "planner/motion_sequence.hpp"
+#include "planner/motion_sequence_50hz.hpp"
 
 #include <atomic>
 #include <chrono>

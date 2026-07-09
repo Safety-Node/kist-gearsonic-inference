@@ -1,7 +1,7 @@
 #pragma once
 
 #include "control/state_logger.hpp"
-#include "planner/motion_sequence.hpp"
+#include "planner/motion_sequence_50hz.hpp"
 
 #include <array>
 #include <cstddef>
