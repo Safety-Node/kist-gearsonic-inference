@@ -1,11 +1,10 @@
 #pragma once
 
 #include "common/data_buffer.hpp"
-#include "common/robot_params.hpp"
 #include "control/motor_command.hpp"
-#include "control/obs_dict_model.hpp"
-#include "control/observation.hpp"
+#include "control/policy_decoder.hpp"
 #include "control/state_logger.hpp"
+#include "control/token_encoder.hpp"
 #include "planner/motion_sequence_50hz.hpp"
 
 #include <atomic>
@@ -16,17 +15,22 @@
 
 namespace kist {
 
-// 50Hz control loop, ported from gear_sonic's Control() thread:
+// 50Hz whole-body controller, ported from gear_sonic's Control() thread:
 //   INIT (3s ramp to default pose) -> WAIT_FOR_CONTROL -> CONTROL
-// Each CONTROL tick: robot state -> history logger -> encoder -> decoder ->
-// MotorCommand buffer -> playback cursor advance + planner motion blending.
-// It never touches DDS output itself — the (future) 500Hz command writer
-// consumes motor_command_buf; until then running this is inherently dry.
-class ControlLoop {
+//
+// The orchestrator: owns the state machine, safety gates (e-stop,
+// LowState), robot-state history, and playback of the planner motion
+// (blending + cursor). The per-tick computation lives in the two stages
+// it drives: TokenEncoder (motion -> token) and PolicyDecoder
+// (token + history -> MotorCommand).
+//
+// It never touches DDS output itself — the 500Hz command writer consumes
+// motor_command_buf; without the writer running this is inherently dry.
+class WholeBodyController {
 public:
     enum class State { INIT, WAIT_FOR_CONTROL, CONTROL, ESTOP };
 
-    static ControlLoop& instance();
+    static WholeBodyController& instance();
     bool start(const std::string& encoder_path, const std::string& decoder_path,
                bool auto_start_control = false);
     void stop();
@@ -44,11 +48,11 @@ public:
     bool playback_snapshot(MotionSequence50Hz& motion, int& cursor) const;
 
     // ── timing (µs, last CONTROL tick) ──────────────────────────
-    struct Timing { long obs{0}, encoder{0}, decoder{0}, total{0}; };
+    struct Timing { long encoder{0}, decoder{0}, total{0}; };
     Timing last_timing() const { std::lock_guard<std::mutex> l(timing_mutex_); return timing_; }
 
 private:
-    ControlLoop() = default;
+    WholeBodyController() = default;
 
     void loop();
     bool check_safety();
@@ -58,10 +62,9 @@ private:
     void tick_control();
     void advance_playback();
 
-    ObsDictModel encoder_;
-    ObsDictModel decoder_;
-    StateLogger  logger_;
-    ObservationAssembler obs_;
+    TokenEncoder  encoder_;
+    PolicyDecoder decoder_;
+    StateLogger   logger_;
 
     // Playback state (blended planner motion + cursor)
     mutable std::mutex playback_mutex_;
@@ -72,8 +75,6 @@ private:
 
     // INIT ramp
     int init_ticks_{0};
-
-    std::array<double, 29> last_action_{};   // raw policy output (IsaacLab order)
 
     std::atomic<State> state_{State::INIT};
     std::atomic<bool>  operator_start_{false};

@@ -1,11 +1,12 @@
 // Dry-run of the full TASK-7 pipeline, no motor output anywhere:
-//   fake MovementState -> PlannerInference -> ControlLoop
+//   fake MovementState -> PlannerInference -> WholeBodyController
 //   (blend + observations -> encoder -> decoder -> motor_command_buf)
 // Robot state is faked (standing pose, re-injected to stay fresh) so this
 // runs offline; on the real robot UnitreeStateReader provides it instead.
 
 #include "common/config.hpp"
-#include "control/control_loop.hpp"
+#include "common/robot_params.hpp"
+#include "control/whole_body_controller.hpp"
 #include "motion/input_handler.hpp"
 #include "planner/planner_inference.hpp"
 #include "unitree/unitree_state_reader.hpp"
@@ -36,7 +37,7 @@ int main(int argc, char** argv) {
     if (!planner.start(root["planner"]["model_path"].as<std::string>()))
         return 1;
 
-    auto& control = kist::ControlLoop::instance();
+    auto& control = kist::WholeBodyController::instance();
     // Planner context <- control loop's blended motion + cursor
     planner.set_playback_provider([&control](kist::MotionSequence50Hz& m, int& c) {
         return control.playback_snapshot(m, c);
@@ -62,7 +63,7 @@ int main(int argc, char** argv) {
                       << "  q[3]=" << cmd.data->q_target[3]
                       << "  q[15]=" << cmd.data->q_target[15]
                       << "  kp[0]=" << std::setprecision(1) << cmd.data->kp[0]
-                      << "  | tick: obs=" << t.obs << "us enc=" << t.encoder
+                      << "  | tick: enc=" << t.encoder
                       << "us dec=" << t.decoder << "us total=" << t.total << "us\n";
         } else {
             std::cout << "[Cmd] waiting... (state=" << static_cast<int>(control.state()) << ")\n";

@@ -1,6 +1,6 @@
 // FULL LIVE TEST — THE ROBOT WILL MOVE.
 //
-//   VR joystick -> InputHandler -> PlannerInference -> ControlLoop
+//   VR joystick -> InputHandler -> PlannerInference -> WholeBodyController
 //     -> motor_command_buf -> UnitreeCommandWriter -> rt/lowcmd (DDS)
 //
 // Safety gating:
@@ -13,7 +13,7 @@
 // controller released (damping via remote), headset connected.
 
 #include "common/config.hpp"
-#include "control/control_loop.hpp"
+#include "control/whole_body_controller.hpp"
 #include "motion/input_handler.hpp"
 #include "pico/pico_vr_reader.hpp"
 #include "planner/planner_inference.hpp"
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     if (!planner.start(root["planner"]["model_path"].as<std::string>()))
         return 1;
 
-    auto& control = kist::ControlLoop::instance();
+    auto& control = kist::WholeBodyController::instance();
     planner.set_playback_provider([&control](kist::MotionSequence50Hz& m, int& c) {
         return control.playback_snapshot(m, c);
     });
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    while (control.state() == kist::ControlLoop::State::INIT && !g_quit)
+    while (control.state() == kist::WholeBodyController::State::INIT && !g_quit)
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // ── gate 2: policy control ──────────────────────────────────
