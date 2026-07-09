@@ -153,6 +153,14 @@ void PicoVRReader::stop() {
     PXREADeinit();
 }
 
+void PicoVRReader::on_body_update(const PicoVRBodyPose& pose) {
+    body_buf.SetData(pose);
+}
+
+void PicoVRReader::on_controller_update(const PicoVRController& ctrl) {
+    ctrl_buf.SetData(ctrl);
+}
+
 // Each stream is watched independently: a dropped body-tracking stream must
 // not clear fresh controller data (the control chain runs on ctrl alone),
 // and a controller-only session must still clear its buffer when the link
@@ -176,14 +184,6 @@ void PicoVRReader::watchdog_loop() {
             ctrl_buf.Clear();
         }
     }
-}
-
-void PicoVRReader::on_body_update(const PicoVRBodyPose& pose) {
-    body_buf.SetData(pose);
-}
-
-void PicoVRReader::on_controller_update(const PicoVRController& ctrl) {
-    ctrl_buf.SetData(ctrl);
 }
 
 } // namespace kist

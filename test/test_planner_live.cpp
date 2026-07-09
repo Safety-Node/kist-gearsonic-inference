@@ -51,7 +51,8 @@ int main(int argc, char** argv) {
 
     // ── robot state (read-only DDS subscriber) ──────────────────
     auto& robot = kist::UnitreeStateReader::instance();
-    robot.start(domain_id, interface);
+    if (!robot.start(domain_id, interface))
+        return 1;
 
     std::cout << "Waiting for robot state on \"" << interface << "\"...\n";
     while (!robot.unitree_state_buf.GetData()) {

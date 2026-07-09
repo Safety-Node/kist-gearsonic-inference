@@ -18,21 +18,20 @@ class UnitreeStateReader {
 public:
     // ── lifecycle ──────────────────────────────────────────────
     static UnitreeStateReader& instance();
-    void                       start(int domain_id, const std::string& network_interface);
+    bool                       start(int domain_id, const std::string& network_interface);
     void                       stop();
 
-    // ── state ──────────────────────────────────────────────────
-    std::atomic<bool> connected{false};
-
     // ── data buffers (read from any thread) ────────────────────
+    // Link liveness is the buffers themselves: the watchdog clears a
+    // stream's buffer when it goes stale, and consumers key off "has data".
     DataBuffer<UnitreeState> unitree_state_buf;
     DataBuffer<IMU>          imu_torso_buf;
 
 private:
     UnitreeStateReader() = default;
 
-    void on_lowstate(const void* message);
-    void on_imu_torso(const void* message);
+    void on_lowstate_update(const void* message);
+    void on_imu_torso_update(const void* message);
     void watchdog_loop();
 
     using SdkLowState = unitree_hg::msg::dds_::LowState_;
