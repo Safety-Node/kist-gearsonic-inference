@@ -9,10 +9,8 @@
 #include <thread>
 
 #include <arpa/inet.h>
-#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 using json = nlohmann::json;
@@ -97,29 +95,15 @@ static void pxrea_callback(void*, PXREAClientCallbackType type, int, void* user_
     }
 }
 
-// ─── RoboticsService daemon management ────────────────────────────────────────
+// ─── RoboticsService daemon probe ─────────────────────────────────────────────
 //
 // The PXREA SDK is a gRPC client of the XRoboToolkit PC service
-// (RoboticsServiceProcess) listening on 127.0.0.1:60061. start() launches the
-// daemon if it isn't already running (ensure-running).
-//
-// Lifetime semantics:
-//  - stop() / process exit does NOT kill the daemon: the headset session
-//    stays connected and the next start() reattaches instantly.
-//  - The daemon lives as long as whatever spawned it: launched inside a
-//    Docker container it dies with that container (use docker/run.sh's
-//    persistent container to keep it across shell sessions); launched on
-//    the host it survives until killed manually.
-//  - Only one instance can bind the port. With host networking a daemon
-//    on the host and one in a container are the same instance to us —
-//    the port probe below treats "something listens on 60061" as running.
+// (RoboticsServiceProcess) listening on 127.0.0.1:60061. The daemon is run
+// manually on the host — see README "Running XRoboToolkit". We only probe
+// for it here: PXREAInit() succeeds even with no daemon (lazy gRPC channel),
+// so the port check is the one reliable way to fail fast with a clear error.
 
-static constexpr const char* kDaemonPath =
-    "/opt/apps/roboticsservice/RoboticsServiceProcess";
-static constexpr const char* kDaemonLibPath =
-    "/opt/apps/roboticsservice:/opt/apps/roboticsservice/lib";
-static constexpr const char* kDaemonLogPath = "/tmp/roboticsservice.log";
-static constexpr uint16_t    kDaemonPort    = 60061;
+static constexpr uint16_t kDaemonPort = 60061;
 
 static bool daemon_port_open() {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -137,39 +121,6 @@ static bool daemon_port_open() {
     return open;
 }
 
-static bool spawn_daemon() {
-    if (access(kDaemonPath, X_OK) != 0) {
-        std::cerr << "[PicoVRReader] daemon binary not found: " << kDaemonPath
-                  << " (mount /opt/apps/roboticsservice into the container)\n";
-        return false;
-    }
-
-    // Double-fork so the daemon is fully detached from this process
-    // (survives our exit, no zombie to reap).
-    pid_t pid = fork();
-    if (pid < 0)
-        return false;
-    if (pid == 0) {
-        setsid();
-        if (fork() != 0)
-            _exit(0);
-
-        // The deb ships its libraries without rpath
-        setenv("LD_LIBRARY_PATH", kDaemonLibPath, 1);
-
-        int devnull = open("/dev/null", O_RDWR);
-        int logfd   = open(kDaemonLogPath, O_CREAT | O_WRONLY | O_APPEND, 0644);
-        dup2(devnull, 0);
-        dup2(logfd >= 0 ? logfd : devnull, 1);
-        dup2(logfd >= 0 ? logfd : devnull, 2);
-
-        execl(kDaemonPath, kDaemonPath, static_cast<char*>(nullptr));
-        _exit(127);
-    }
-    waitpid(pid, nullptr, 0);  // reap the intermediate child
-    return true;
-}
-
 // ─── PicoVRReader ─────────────────────────────────────────────────────────────
 
 PicoVRReader& PicoVRReader::instance() {
@@ -179,17 +130,10 @@ PicoVRReader& PicoVRReader::instance() {
 
 void PicoVRReader::start() {
     if (!daemon_port_open()) {
-        std::cout << "[PicoVRReader] RoboticsService not running, launching it...\n";
-        if (spawn_daemon()) {
-            for (int i = 0; i < 50 && !daemon_port_open(); ++i)  // up to 10 s
-                std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        }
-        if (!daemon_port_open()) {
-            std::cerr << "[PicoVRReader] RoboticsService failed to start"
-                      << " (see " << kDaemonLogPath << ")\n";
-            return;
-        }
-        std::cout << "[PicoVRReader] RoboticsService launched\n";
+        std::cerr << "[PicoVRReader] XRoboToolkit service not running on port "
+                  << kDaemonPort << " — start it on the host first"
+                  << " (see README: Running XRoboToolkit)\n";
+        return;
     }
 
     if (PXREAInit(nullptr, pxrea_callback, PXREAFullMask) != 0) {
