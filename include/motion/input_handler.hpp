@@ -34,6 +34,7 @@ private:
     };
 
     double facing_angle_{0.0};
+    double height_{-1.0};  // valid only in crouch modes; -1 = mode default
     // Arming a locomotion mode is a deliberate operator act: start in IDLE,
     // and drop back to IDLE whenever the VR link is lost (gear_sonic default).
     std::atomic<int> mode_index_{0};  // IDLE
