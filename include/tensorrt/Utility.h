@@ -8,7 +8,7 @@
 //
 // Host data allocations (CPU) are pageable by default and the GPU cannot access data directly
 // from pageable host memory. When a data transfer from pageable host memory to device memory
-// is invoked, the CUDA driver must first allocate a temporary page-locked, or “pinned”, host array,
+// is invoked, the CUDA driver must first allocate a temporary page-locked, or ï¿½pinnedï¿½, host array,
 // copy the host data to the pinned array, and then transfer the data from the pinned array to device
 // memory.
 
@@ -38,7 +38,10 @@ public:
         if (p)
         {
             auto error = cudaFreeHost(p);
-            if (error != cudaSuccess)
+            // cudartUnloading: static destruction after main() â€” the CUDA
+            // runtime already tore everything down, so there is nothing left
+            // to free. Throwing here would terminate() inside a destructor.
+            if (error != cudaSuccess && error != cudaErrorCudartUnloading)
                 throw std::runtime_error(cudaGetErrorString(error));
         }
     }
