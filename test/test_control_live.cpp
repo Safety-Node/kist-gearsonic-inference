@@ -95,11 +95,10 @@ int main(int argc, char** argv) {
     while (!g_quit) {
         auto cmd = control.motor_command_buf.GetDataWithTime();
         auto t   = control.last_timing();
-        auto ms  = kist::InputHandler::instance().movement_buf.GetData();
         if (cmd.HasData()) {
             std::cout << std::fixed << std::setprecision(3)
                       << "[Live] state=" << static_cast<int>(control.state())
-                      << "  mode=" << (ms ? ms->locomotion_mode : -1)
+                      << "  mode=" << kist::InputHandler::instance().mode()
                       << "  q[0]=" << cmd.data->q_target[0]
                       << "  q[3]=" << cmd.data->q_target[3]
                       << "  tick=" << t.total << "us\n";

@@ -8,9 +8,9 @@
 namespace kist {
 
 // Mode navigation walks the LocomotionMode values linearly (gear_sonic
-// remote scheme, clamped at both ends). Bare X/Y stay inside the everyday
-// IDLE..RUN range; entering the advanced modes (squat, crawl, boxing, ...)
-// requires holding a trigger as a modifier — trigger+X/Y works everywhere.
+// remote scheme, clamped at both ends). Going up past RUN into the advanced
+// modes (squat, crawl, boxing, ...) requires holding a trigger; going down
+// (toward IDLE — always the safer direction) is never gated.
 static constexpr int    kBasicModeMax = static_cast<int>(LocomotionMode::RUN);          // 3
 static constexpr int    kFullModeMax  = static_cast<int>(LocomotionMode::INJURED_WALK); // 19 (gear_sonic cap)
 static constexpr double kTriggerHeld  = 0.5;
@@ -59,7 +59,6 @@ void InputHandler::loop() {
             // ── mode selection ────────────────────────────────────
             bool trigger_held = ctrl->left_trigger > kTriggerHeld ||
                                 ctrl->right_trigger > kTriggerHeld;
-            int prev_mode = mode_index_;
 
             if (btn_a_.on_press)
                 mode_index_ = static_cast<int>(LocomotionMode::IDLE);      // escape from anywhere
@@ -70,13 +69,8 @@ void InputHandler::loop() {
                 if (mode_index_ < limit)
                     ++mode_index_;
             }
-            if (btn_x_.on_press) {
-                bool allowed = trigger_held || mode_index_ <= kBasicModeMax;
-                if (allowed && mode_index_ > 0)
-                    --mode_index_;
-            }
-            if (mode_index_ != prev_mode)
-                std::cout << "[InputHandler] mode -> " << mode_index_ << "\n";
+            if (btn_x_.on_press && mode_index_ > 0)
+                --mode_index_;
 
             // ── facing angle ──────────────────────────────────────
             if (std::abs(rx) > kDeadZone)

@@ -17,6 +17,11 @@ public:
     // ── data buffer (read from any thread) ─────────────────────
     DataBuffer<MovementState> movement_buf;
 
+    // Selected locomotion mode — what the stick will trigger. The
+    // published MovementState stays IDLE while the stick is in the
+    // deadzone, so displays should show this instead.
+    int mode() const { return mode_index_; }
+
 private:
     InputHandler() = default;
 
@@ -31,7 +36,7 @@ private:
     double facing_angle_{0.0};
     // Arming a locomotion mode is a deliberate operator act: start in IDLE,
     // and drop back to IDLE whenever the VR link is lost (gear_sonic default).
-    int    mode_index_{0};  // IDLE
+    std::atomic<int> mode_index_{0};  // IDLE
 
     Button btn_a_, btn_b_, btn_x_, btn_y_;
 
