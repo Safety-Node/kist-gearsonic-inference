@@ -43,8 +43,9 @@ int main(int argc, char** argv) {
     kist::InputHandler::instance().start();
 
     auto& robot = kist::UnitreeStateReader::instance();
-    robot.start(root["unitree"]["domain_id"].as<int>(),
-                root["unitree"]["network_interface"].as<std::string>());
+    if (!robot.start(root["unitree"]["domain_id"].as<int>(),
+                     root["unitree"]["network_interface"].as<std::string>()))
+        return 1;
 
     std::cout << "Waiting for robot state...\n";
     while (!robot.unitree_state_buf.GetData()) {

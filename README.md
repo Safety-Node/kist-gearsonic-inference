@@ -14,8 +14,8 @@ C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid rob
 | `libPXREARobotSDK` | PICO VR C++ client library |
 | `unitree_sdk2` | Unitree G1 DDS client library |
 | `yaml-cpp` | YAML config parser |
-| `CUDA` | GPU runtime for TensorRT inference |
-| `TensorRT` | ONNX → TRT engine conversion and inference |
+| `CUDA == 12.6` | GPU runtime for TensorRT inference |
+| `TensorRT == 10.7` | ONNX → TRT engine conversion and inference |
 
 ### Installing XRoboToolkit
 
@@ -51,8 +51,19 @@ git clone https://github.com/unitreerobotics/unitree_sdk2.git thirdparty/unitree
 sudo apt install libyaml-cpp-dev
 ```
 
-## Environment
+## Build
+
+```bash
+cmake -B build && cmake --build build
+```
+
+## Run
+
+### 1. XRoboToolkit (PICO VR daemon)
 
 ```bash
 source env.sh
+run_vr_daemon
 ```
+
+Connect the headset from its XRoboToolkit app.

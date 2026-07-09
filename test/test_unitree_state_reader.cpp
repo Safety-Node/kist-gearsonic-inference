@@ -15,7 +15,8 @@ int main(int argc, char** argv) {
     auto interface   = unitree_cfg["network_interface"].as<std::string>();
 
     auto& reader = kist::UnitreeStateReader::instance();
-    reader.start(domain_id, interface);
+    if (!reader.start(domain_id, interface))
+        return 1;
 
     std::cout << "Waiting for Unitree state... (Ctrl+C to exit)\n";
 

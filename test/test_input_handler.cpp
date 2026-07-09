@@ -9,8 +9,7 @@ int main() {
     auto& reader  = kist::PicoVRReader::instance();
     auto& handler = kist::InputHandler::instance();
 
-    reader.start();
-    if (!reader.connected)
+    if (!reader.start())
         return 1;
 
     handler.start();

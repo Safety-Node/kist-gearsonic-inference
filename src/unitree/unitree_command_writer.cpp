@@ -1,5 +1,6 @@
 #include "unitree/unitree_command_writer.hpp"
 #include "common/thread_priority.hpp"
+#include "unitree/crc32.hpp"
 #include "unitree/unitree_state_reader.hpp"
 
 #include <unitree/robot/b2/motion_switcher/motion_switcher_client.hpp>
@@ -12,27 +13,6 @@ namespace kist {
 static const std::string kLowCmdTopic = "rt/lowcmd";
 static constexpr auto    kPublishPeriod = std::chrono::microseconds(2000);  // 500Hz
 static constexpr uint8_t kModePR = 0;  // series pitch/roll ankle mode
-
-// Unitree SDK CRC (gear_sonic utils.hpp Crc32Core)
-static uint32_t crc32_core(const uint32_t* ptr, uint32_t len) {
-    uint32_t crc = 0xFFFFFFFF;
-    const uint32_t poly = 0x04c11db7;
-    for (uint32_t i = 0; i < len; i++) {
-        uint32_t xbit = 1u << 31;
-        uint32_t data = ptr[i];
-        for (uint32_t bits = 0; bits < 32; bits++) {
-            if (crc & 0x80000000) {
-                crc <<= 1;
-                crc ^= poly;
-            } else {
-                crc <<= 1;
-            }
-            if (data & xbit) crc ^= poly;
-            xbit >>= 1;
-        }
-    }
-    return crc;
-}
 
 UnitreeCommandWriter& UnitreeCommandWriter::instance() {
     static UnitreeCommandWriter inst;

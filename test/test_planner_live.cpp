@@ -45,16 +45,14 @@ int main(int argc, char** argv) {
 
     // ── VR input chain ──────────────────────────────────────────
     auto& vr = kist::PicoVRReader::instance();
-    vr.start();
-    if (!vr.connected) {
-        std::cerr << "VR device not connected\n";
+    if (!vr.start())
         return 1;
-    }
     kist::InputHandler::instance().start();
 
     // ── robot state (read-only DDS subscriber) ──────────────────
     auto& robot = kist::UnitreeStateReader::instance();
-    robot.start(domain_id, interface);
+    if (!robot.start(domain_id, interface))
+        return 1;
 
     std::cout << "Waiting for robot state on \"" << interface << "\"...\n";
     while (!robot.unitree_state_buf.GetData()) {
