@@ -28,22 +28,12 @@ private:
         void update(bool cur) { on_press = cur && !prev; prev = cur; }
     };
 
-    struct TriggerButton {
-        bool prev{false};
-        bool on_press{false};
-        void update(double val) {
-            bool cur = val > 0.5;
-            on_press = cur && !prev;
-            prev = cur;
-        }
-    };
-
     double facing_angle_{0.0};
-    double movement_speed_{0.4};  // default SLOW_WALK speed
-    int    mode_index_{1};         // default SLOW_WALK
+    // Arming a locomotion mode is a deliberate operator act: start in IDLE,
+    // and drop back to IDLE whenever the VR link is lost (gear_sonic default).
+    int    mode_index_{0};  // IDLE
 
-    Button        btn_a_, btn_b_, btn_x_, btn_y_;
-    TriggerButton left_trigger_, right_trigger_;
+    Button btn_a_, btn_b_, btn_x_, btn_y_;
 
     std::thread       loop_thread_;
     std::atomic<bool> stop_{false};
