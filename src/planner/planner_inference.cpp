@@ -50,6 +50,13 @@ bool PlannerInference::start(const std::string& onnx_path, Precision precision,
         return false;
     }
 
+    // Validate that the engine is actually the planner model we expect —
+    // every tensor name used at runtime plus the load-bearing dims. Fails
+    // here with a clear message instead of strangely at the first inference.
+    // (gear_sonic validates the same names at construction.)
+    if (!validate_engine())
+        return false;
+
     if (cudaStreamCreate(&stream_) != cudaSuccess) {
         std::cerr << "[PlannerInference] cudaStreamCreate failed\n";
         return false;
@@ -73,6 +80,51 @@ bool PlannerInference::start(const std::string& onnx_path, Precision precision,
     stop_        = false;
     loop_thread_ = std::thread(&PlannerInference::loop, this);
     std::cout << "[PlannerInference] started (10 Hz)\n";
+    return true;
+}
+
+bool PlannerInference::validate_engine() {
+    static const char* kInputs[] = {
+        "context_mujoco_qpos", "mode", "target_vel", "movement_direction",
+        "facing_direction", "random_seed", "height", "has_specific_target",
+        "specific_target_positions", "specific_target_headings",
+        "allowed_pred_num_tokens"};
+    static const char* kOutputs[] = {"mujoco_qpos", "num_pred_frames"};
+
+    auto tensor_dim = [this](const std::string& name) -> size_t {
+        std::vector<int64_t> shape;
+        if (!engine_.GetTensorShape(name, shape))
+            return 0;
+        size_t n = 1;
+        for (auto d : shape)
+            if (d > 0) n *= static_cast<size_t>(d);
+        return n;
+    };
+
+    auto inputs  = engine_.GetInputTensorNames();
+    auto outputs = engine_.GetOutputTensorNames();
+
+    for (const char* name : kInputs) {
+        if (std::find(inputs.begin(), inputs.end(), name) == inputs.end()) {
+            std::cerr << "[PlannerInference] engine is missing input tensor \"" << name << "\"\n";
+            return false;
+        }
+    }
+    for (const char* name : kOutputs) {
+        if (std::find(outputs.begin(), outputs.end(), name) == outputs.end()) {
+            std::cerr << "[PlannerInference] engine is missing output tensor \"" << name << "\"\n";
+            return false;
+        }
+    }
+
+    size_t ctx = tensor_dim("context_mujoco_qpos");
+    size_t out = tensor_dim("mujoco_qpos");
+    if (ctx != kContextFrames * kQposDim || out != size_t(kMaxPlannerFrames) * kQposDim) {
+        std::cerr << "[PlannerInference] unexpected tensor dims: context=" << ctx
+                  << " (want " << kContextFrames * kQposDim << "), mujoco_qpos=" << out
+                  << " (want " << kMaxPlannerFrames * kQposDim << ")\n";
+        return false;
+    }
     return true;
 }
 

@@ -74,8 +74,9 @@ target_link_libraries(input_handler PUBLIC pico_vr_reader)
 # ─── control ─────────────────────────────────────────────────────────────────
 add_library(control STATIC
     src/control/obs_dict_model.cpp
-    src/control/observation.cpp
-    src/control/control_loop.cpp
+    src/control/token_encoder.cpp
+    src/control/policy_decoder.cpp
+    src/control/whole_body_controller.cpp
 )
 target_include_directories(control PUBLIC include)
 target_link_libraries(control PUBLIC tensorrt_inference planner_inference unitree_state_reader)
@@ -120,3 +121,7 @@ target_link_libraries(lowcmd_monitor PRIVATE unitree_state_reader yaml-cpp)
 
 add_executable(release_motion_service test/release_motion_service.cpp)
 target_link_libraries(release_motion_service PRIVATE unitree_state_reader yaml-cpp)
+
+add_executable(test_stage_probe test/test_stage_probe.cpp)
+target_link_libraries(test_stage_probe PRIVATE control yaml-cpp)
+set_target_properties(test_stage_probe PROPERTIES CXX_STANDARD 20)

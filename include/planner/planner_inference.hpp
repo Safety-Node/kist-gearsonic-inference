@@ -2,7 +2,7 @@
 
 #include "common/data_buffer.hpp"
 #include "motion/movement_state.hpp"
-#include "planner/motion_sequence.hpp"
+#include "planner/motion_sequence_50hz.hpp"
 #include "tensorrt/InferenceEngine.h"
 
 #include <array>
@@ -46,6 +46,7 @@ private:
     PlannerInference() = default;
 
     void loop();
+    bool validate_engine();
     bool initialize_once();
     bool need_replan(const MovementState& ms);
     void set_input_tensors(int mode, float target_vel, float target_height,

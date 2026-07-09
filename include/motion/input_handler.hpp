@@ -22,6 +22,12 @@ public:
     // deadzone, so displays should show this instead.
     int mode() const { return mode_index_; }
 
+    // Emergency stop: latched once both grips are squeezed for 1s.
+    // One-way — never clears until the process restarts. Deliberately an
+    // atomic and not a DataBuffer: a stop request must not be clearable
+    // or go stale.
+    bool estop() const { return estop_; }
+
 private:
     InputHandler() = default;
 
@@ -39,7 +45,9 @@ private:
     // and drop back to IDLE whenever the VR link is lost (gear_sonic default).
     std::atomic<int> mode_index_{0};  // IDLE
 
-    Button btn_a_, btn_b_, btn_x_, btn_y_;
+    Button btn_a_, btn_x_, btn_y_;
+    int    estop_hold_ticks_{0};
+    std::atomic<bool> estop_{false};
 
     std::thread       loop_thread_;
     std::atomic<bool> stop_{false};

@@ -1,50 +1,52 @@
-#include "control/control_loop.hpp"
+#include "control/whole_body_controller.hpp"
 #include "common/joint_order.hpp"
 #include "common/math_utils.hpp"
+#include "common/robot_params.hpp"
 #include "common/thread_priority.hpp"
+#include "motion/input_handler.hpp"
 #include "planner/planner_inference.hpp"
 #include "unitree/unitree_state_reader.hpp"
 
 #include <algorithm>
-#include <cstring>
 #include <iostream>
 
 namespace kist {
 
-static constexpr double kMaxJointVel      = 35.0;   // rad/s, safety abort
-static constexpr double kStateStaleMs     = 500.0;  // LowState absence threshold
+static constexpr double kMaxJointVel  = 35.0;   // rad/s, safety abort
+static constexpr double kStateStaleMs = 500.0;  // LowState absence threshold
 
-ControlLoop& ControlLoop::instance() {
-    static ControlLoop inst;
+WholeBodyController& WholeBodyController::instance() {
+    static WholeBodyController inst;
     return inst;
 }
 
-bool ControlLoop::start(const std::string& encoder_path, const std::string& decoder_path,
-                        bool auto_start_control) {
+bool WholeBodyController::start(const std::string& encoder_path,
+                                const std::string& decoder_path,
+                                bool auto_start_control) {
     auto_start_ = auto_start_control;
 
-    if (!encoder_.Initialize(encoder_path, "encoded_tokens",
-                             ObservationAssembler::kEncoderDim,
-                             ObservationAssembler::kTokenDim))
+    if (!encoder_.init(encoder_path))
         return false;
-    if (!decoder_.Initialize(decoder_path, "action",
-                             ObservationAssembler::kPolicyDim, 29))
+    if (!decoder_.init(decoder_path))
         return false;
 
     stop_        = false;
-    loop_thread_ = std::thread(&ControlLoop::loop, this);
-    try_realtime_priority(loop_thread_, 80, "ControlLoop");
-    std::cout << "[ControlLoop] started (50 Hz)\n";
+    loop_thread_ = std::thread(&WholeBodyController::loop, this);
+    try_realtime_priority(loop_thread_, 80, "WholeBodyController");
+    std::cout << "[WholeBodyController] started (50 Hz)\n";
     return true;
 }
 
-void ControlLoop::stop() {
+void WholeBodyController::stop() {
     stop_ = true;
     if (loop_thread_.joinable())
         loop_thread_.join();
+    // The buffer's last word is always damping, so a still-running writer
+    // can never keep republishing a stale pose target.
+    publish_damping();
 }
 
-bool ControlLoop::playback_snapshot(MotionSequence50Hz& motion, int& cursor) const {
+bool WholeBodyController::playback_snapshot(MotionSequence50Hz& motion, int& cursor) const {
     std::lock_guard<std::mutex> lock(playback_mutex_);
     if (playback_motion_.timesteps == 0)
         return false;
@@ -55,10 +57,10 @@ bool ControlLoop::playback_snapshot(MotionSequence50Hz& motion, int& cursor) con
 
 // ─── safety / robot state ─────────────────────────────────────────────────────
 
-bool ControlLoop::check_safety() {
+bool WholeBodyController::check_safety() {
     auto st = UnitreeStateReader::instance().unitree_state_buf.GetDataWithTime();
     if (!st.HasData() || st.GetAgeMs() > kStateStaleMs) {
-        std::cerr << "[ControlLoop] LowState missing/stale — stopping\n";
+        std::cerr << "[WholeBodyController] LowState missing/stale — stopping\n";
         return false;
     }
     return true;
@@ -66,7 +68,7 @@ bool ControlLoop::check_safety() {
 
 // On any safety failure, overwrite the outgoing command with zero-torque
 // damping so the (running) writer never keeps publishing a stale target.
-void ControlLoop::publish_damping() {
+void WholeBodyController::publish_damping() {
     MotorCommand damping;
     for (int i = 0; i < 29; ++i) {
         damping.kp[i] = 0.0f;
@@ -75,7 +77,7 @@ void ControlLoop::publish_damping() {
     motor_command_buf.SetData(damping);
 }
 
-bool ControlLoop::gather_robot_state() {
+bool WholeBodyController::gather_robot_state() {
     auto st = UnitreeStateReader::instance().unitree_state_buf.GetData();
     if (!st)
         return false;
@@ -90,19 +92,19 @@ bool ControlLoop::gather_robot_state() {
         e.body_q[i]  = st->motors[m].q - g1_default_angles[m];
         e.body_dq[i] = st->motors[m].dq;
         if (std::abs(e.body_dq[i]) > kMaxJointVel) {
-            std::cerr << "[ControlLoop] joint velocity " << e.body_dq[i]
+            std::cerr << "[WholeBodyController] joint velocity " << e.body_dq[i]
                       << " rad/s over limit — stopping\n";
             return false;
         }
     }
-    e.last_action = last_action_;
+    e.last_action = decoder_.last_action();
     logger_.Log(e);
     return true;
 }
 
 // ─── INIT: 3s linear ramp to the default standing pose ────────────────────────
 
-void ControlLoop::tick_init() {
+void WholeBodyController::tick_init() {
     auto st = UnitreeStateReader::instance().unitree_state_buf.GetData();
     if (!st)
         return;
@@ -122,7 +124,7 @@ void ControlLoop::tick_init() {
 
     if (++init_ticks_ >= kInitTicks) {
         state_ = State::WAIT_FOR_CONTROL;
-        std::cout << "[ControlLoop] INIT ramp done -> WAIT_FOR_CONTROL\n";
+        std::cout << "[WholeBodyController] INIT ramp done -> WAIT_FOR_CONTROL\n";
     }
 }
 
@@ -130,7 +132,7 @@ void ControlLoop::tick_init() {
 // gear_sonic CurrentFrameAdvancement: adopt/blend new planner sequences, then
 // advance the cursor by one frame per tick, clamping at the end.
 
-void ControlLoop::advance_playback() {
+void WholeBodyController::advance_playback() {
     std::lock_guard<std::mutex> lock(playback_mutex_);
 
     auto plan = PlannerInference::instance().motion_50hz_buf.GetDataWithTime();
@@ -143,8 +145,8 @@ void ControlLoop::advance_playback() {
             playback_motion_ = gen;
             cursor_  = 0;
             playing_ = true;
-            obs_.request_heading_reinit();
-            std::cout << "[ControlLoop] first planner motion adopted ("
+            encoder_.request_heading_reinit();
+            std::cout << "[WholeBodyController] first planner motion adopted ("
                       << gen.timesteps << " frames)\n";
         } else {
             int fgen = gen.gen_frame;
@@ -185,7 +187,7 @@ void ControlLoop::advance_playback() {
 
 // ─── CONTROL tick ─────────────────────────────────────────────────────────────
 
-void ControlLoop::tick_control() {
+void WholeBodyController::tick_control() {
     using clock = std::chrono::steady_clock;
     auto t0 = clock::now();
 
@@ -195,6 +197,10 @@ void ControlLoop::tick_control() {
         return;
     }
 
+    // Snapshot the playback state. The lock protects cursor_ against the
+    // planner thread's playback_snapshot(); playback_motion_ itself is only
+    // ever written by this thread (advance_playback), so reading it through
+    // the pointer after the lock is released is safe.
     MotionSequence50Hz* motion = nullptr;
     int cursor = 0;
     {
@@ -208,54 +214,46 @@ void ControlLoop::tick_control() {
         return;
     }
 
-    // observations (heading state must update first)
-    obs_.update_heading_state(*motion, cursor, logger_);
-    obs_.fill_encoder_obs(encoder_.input(), *motion, cursor, playing_, logger_);
+    TokenEncoder::Token token;
+    if (!encoder_.step(*motion, cursor, playing_, logger_, token))
+        return;
     auto t1 = clock::now();
 
-    if (!encoder_.Infer())
+    MotorCommand cmd;
+    if (!decoder_.step(token, logger_, cmd))
         return;
     auto t2 = clock::now();
 
-    std::memcpy(decoder_.input(), encoder_.output(),
-                ObservationAssembler::kTokenDim * sizeof(float));
-    obs_.fill_policy_obs(decoder_.input(), logger_);
-    if (!decoder_.Infer())
-        return;
-    auto t3 = clock::now();
-
-    // action -> motor command (q = default + scale * remap(action))
-    const float* action = decoder_.output();
-    MotorCommand cmd;
-    for (int i = 0; i < 29; ++i) {
-        double a = action[isaaclab_to_mujoco[i]] * g1_action_scale[i];
-        cmd.q_target[i] = static_cast<float>(g1_default_angles[i] + a);
-        cmd.kp[i]       = g1_kps[i];
-        cmd.kd[i]       = g1_kds[i];
-    }
     motor_command_buf.SetData(cmd);
-    for (int i = 0; i < 29; ++i)
-        last_action_[i] = action[i];
-
     advance_playback();
 
     {
         std::lock_guard<std::mutex> l(timing_mutex_);
-        timing_.obs     = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-        timing_.encoder = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-        timing_.decoder = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
+        timing_.encoder = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+        timing_.decoder = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
         timing_.total   = std::chrono::duration_cast<std::chrono::microseconds>(clock::now() - t0).count();
     }
 }
 
 // ─── loop ─────────────────────────────────────────────────────────────────────
 
-void ControlLoop::loop() try {
+void WholeBodyController::loop() try {
     using clock = std::chrono::steady_clock;
     const auto period = std::chrono::microseconds(static_cast<int>(kControlDt * 1e6));
 
     while (!stop_) {
         auto t0 = clock::now();
+
+        // Operator e-stop: terminal state — damping every tick, no recovery.
+        if (InputHandler::instance().estop()) {
+            if (state_ != State::ESTOP) {
+                std::cerr << "[WholeBodyController] EMERGENCY STOP — damping, control terminated\n";
+                state_ = State::ESTOP;
+            }
+            publish_damping();
+            std::this_thread::sleep_until(t0 + period);
+            continue;
+        }
 
         if (!check_safety()) {
             publish_damping();
@@ -270,18 +268,20 @@ void ControlLoop::loop() try {
             case State::WAIT_FOR_CONTROL:
                 if (operator_start_ || auto_start_) {
                     state_ = State::CONTROL;
-                    std::cout << "[ControlLoop] -> CONTROL\n";
+                    std::cout << "[WholeBodyController] -> CONTROL\n";
                 }
                 break;
             case State::CONTROL:
                 tick_control();
                 break;
+            case State::ESTOP:
+                break;  // unreachable — handled by the gate above
         }
 
         std::this_thread::sleep_until(t0 + period);
     }
 } catch (const std::exception& e) {
-    std::cerr << "[ControlLoop] loop exception: " << e.what() << "\n";
+    std::cerr << "[WholeBodyController] loop exception: " << e.what() << "\n";
 }
 
 } // namespace kist
