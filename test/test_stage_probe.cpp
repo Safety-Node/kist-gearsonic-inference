@@ -60,9 +60,9 @@ int main(int argc, char** argv) {
 
     constexpr int kCursor = 5;
 
-    // ── encoder stage ──
+    // ── encoder stage, g1 mode (no VR 3-point) ──
     TokenEncoder::Token token;
-    if (!encoder.step(motion, kCursor, /*playing=*/true, logger, token))
+    if (!encoder.step(motion, kCursor, /*playing=*/true, logger, nullptr, token))
         return 1;
 
     std::printf("token   :");
@@ -84,6 +84,26 @@ int main(int argc, char** argv) {
         double q = g1_default_angles[i] + action[isaaclab_to_mujoco[i]] * g1_action_scale[i];
         std::printf(" %.6f", q);
     }
+    std::printf("\n");
+
+    // ── encoder stage, teleop mode (synthetic VR 3-point) ──
+    VR3Point vr3;
+    for (int i = 0; i < 9; ++i)
+        vr3.position[i] = 0.30 + 0.05 * std::sin(0.7 * i);
+    for (int k = 0; k < 3; ++k) {
+        double ang = 0.2 + 0.15 * k;
+        vr3.orientation[k * 4 + 0] = std::cos(ang / 2);
+        vr3.orientation[k * 4 + 1] = 0.0;
+        vr3.orientation[k * 4 + 2] = 0.0;
+        vr3.orientation[k * 4 + 3] = std::sin(ang / 2);
+    }
+
+    TokenEncoder::Token token1;
+    if (!encoder.step(motion, kCursor, /*playing=*/true, logger, &vr3, token1))
+        return 1;
+
+    std::printf("token1  :");
+    for (int i = 0; i < 8; ++i) std::printf(" %.6f", token1[i]);
     std::printf("\n");
     return 0;
 }

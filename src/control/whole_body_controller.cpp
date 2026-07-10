@@ -5,6 +5,7 @@
 #include "common/thread_priority.hpp"
 #include "motion/input_handler.hpp"
 #include "planner/planner_inference.hpp"
+#include "teleop/teleop_tracker.hpp"
 #include "unitree/unitree_state_reader.hpp"
 
 #include <algorithm>
@@ -214,8 +215,12 @@ void WholeBodyController::tick_control() {
         return;
     }
 
+    // Teleop upper-body target: buffer presence selects the encoder mode
+    // (empty until calibrated, cleared when body tracking drops -> g1).
+    auto vr3 = TeleopTracker::instance().vr3point_buf.GetData();
+
     TokenEncoder::Token token;
-    if (!encoder_.step(*motion, cursor, playing_, logger_, token))
+    if (!encoder_.step(*motion, cursor, playing_, logger_, vr3.get(), token))
         return;
     auto t1 = clock::now();
 

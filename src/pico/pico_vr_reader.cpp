@@ -51,8 +51,6 @@ static void pxrea_callback(void*, PXREAClientCallbackType type, int, void* user_
             auto& body = value["Body"];
             if (body.contains("joints") && body["joints"].is_array()) {
                 PicoVRBodyPose pose;
-                pose.timestamp_ns = body.value("timeStampNs", int64_t{0});
-
                 auto& joints = body["joints"];
                 int n = std::min(static_cast<int>(joints.size()), 24);
                 for (int i = 0; i < n; i++) {

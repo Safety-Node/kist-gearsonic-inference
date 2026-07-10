@@ -40,6 +40,9 @@ public:
 
     State state() const { return state_; }
 
+    // Encoder mode of the last CONTROL tick (g1=0, teleop=1, -1 before first)
+    int encoder_mode() const { return encoder_.mode(); }
+
     // ── outputs ─────────────────────────────────────────────────
     DataBuffer<MotorCommand> motor_command_buf;
 
