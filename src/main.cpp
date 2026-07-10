@@ -8,8 +8,8 @@
 // Operator flow:
 //   Enter        : 3s INIT ramp to the standing pose
 //   Enter        : hand over to the policy (WAIT_FOR_CONTROL -> CONTROL)
-//   both triggers 1s : teleop on (calibrate at reference pose) / off
-//   both grips 1s    : emergency stop (latched, damping)
+//   B held 1s    : teleop on (calibrate at reference pose) / off
+//   both grips 1s: emergency stop (latched, damping)
 //   Ctrl+C       : damping, orderly shutdown
 
 #include "common/config.hpp"
@@ -17,9 +17,12 @@
 #include "motion/input_handler.hpp"
 #include "pico/pico_vr_reader.hpp"
 #include "planner/planner_inference.hpp"
+#include "teleop/g1_arm_fk.hpp"
 #include "teleop/teleop_tracker.hpp"
 #include "unitree/unitree_command_writer.hpp"
 #include "unitree/unitree_state_reader.hpp"
+
+#include <cmath>
 
 #include <atomic>
 #include <csignal>
@@ -45,6 +48,16 @@ int main(int argc, char** argv) {
     if (!vr.start())
         return 1;
     kist::InputHandler::instance().start();
+    // wrist calibration reference = FK of the robot's measured joints
+    kist::TeleopTracker::instance().set_measured_q_provider(
+        [](std::array<double, 29>& q) {
+            auto st = kist::UnitreeStateReader::instance().unitree_state_buf.GetData();
+            if (!st)
+                return false;
+            for (int i = 0; i < 29; ++i)
+                q[i] = st->motors[i].q;
+            return true;
+        });
     kist::TeleopTracker::instance().start();
 
     auto& robot = kist::UnitreeStateReader::instance();
@@ -102,8 +115,28 @@ int main(int argc, char** argv) {
                   << "  mode=" << kist::InputHandler::instance().mode()
                   << "  enc=" << control.encoder_mode()
                   << "  tick=" << t.total << "us"
-                  << (kist::InputHandler::instance().estop() ? "  [E-STOP]" : "")
-                  << "\n";
+                  << (kist::InputHandler::instance().estop() ? "  [E-STOP]" : "");
+
+        // teleop tracking error: VR wrist target vs measured-joint FK (cm).
+        // Splits accuracy issues: target side (calibration/tracking) vs
+        // policy tracking side.
+        auto vr3 = kist::TeleopTracker::instance().vr3point_buf.GetData();
+        auto st  = kist::UnitreeStateReader::instance().unitree_state_buf.GetData();
+        if (vr3 && st) {
+            std::array<double, 29> q;
+            for (int i = 0; i < 29; ++i)
+                q[i] = st->motors[i].q;
+            for (bool left : {true, false}) {
+                auto fk = kist::g1_wrist_fk(q, left);
+                const double* tgt = vr3->position.data() + (left ? 0 : 3);
+                double e = std::sqrt(std::pow(tgt[0] - fk.position[0], 2) +
+                                     std::pow(tgt[1] - fk.position[1], 2) +
+                                     std::pow(tgt[2] - fk.position[2], 2));
+                std::cout << (left ? "  errL=" : "  errR=")
+                          << std::fixed << std::setprecision(1) << e * 100.0 << "cm";
+            }
+        }
+        std::cout << "\n";
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 

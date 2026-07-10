@@ -42,7 +42,16 @@ int main(int argc, char** argv) {
     auto& vr = kist::PicoVRReader::instance();
     vr.start();
     kist::InputHandler::instance().start();
-    // teleop: reference pose + both triggers 1s -> calibrate -> encoder mode 1
+    // teleop: reference pose + B held 1s -> calibrate -> encoder mode 1
+    kist::TeleopTracker::instance().set_measured_q_provider(
+        [](std::array<double, 29>& q) {
+            auto st = kist::UnitreeStateReader::instance().unitree_state_buf.GetData();
+            if (!st)
+                return false;
+            for (int i = 0; i < 29; ++i)
+                q[i] = st->motors[i].q;
+            return true;
+        });
     kist::TeleopTracker::instance().start();
 
     auto& robot = kist::UnitreeStateReader::instance();

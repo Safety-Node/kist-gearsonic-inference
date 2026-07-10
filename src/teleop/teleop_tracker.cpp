@@ -1,6 +1,7 @@
 #include "teleop/teleop_tracker.hpp"
 #include "common/math_utils.hpp"
 #include "pico/pico_vr_reader.hpp"
+#include "teleop/g1_arm_fk.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -98,13 +99,15 @@ void TeleopTracker::loop() {
     }
 }
 
-// Both triggers squeezed >0.8 for 1s — a toggle: not calibrated ->
-// calibrate (teleop on); calibrated -> reset (back to g1). Must be
-// released before it can fire again; re-entry recalibrates fresh.
+// B held 1s (triggers released — trigger+B is the height control) —
+// a toggle: not calibrated -> calibrate (teleop on); calibrated ->
+// reset (back to g1). Must be released before it can fire again;
+// re-entry recalibrates fresh. Triggers stay free for hand control.
 void TeleopTracker::check_calibration_gesture() {
     auto ctrl = PicoVRReader::instance().ctrl_buf.GetData();
-    bool held = ctrl && ctrl->left_trigger > kCalibTrigger &&
-                        ctrl->right_trigger > kCalibTrigger;
+    bool held = ctrl && ctrl->btn_b &&
+                ctrl->left_trigger < kTriggerIdle &&
+                ctrl->right_trigger < kTriggerIdle;
     if (!held) {
         calib_hold_ticks_     = 0;
         calib_gesture_latched_ = false;
@@ -115,11 +118,14 @@ void TeleopTracker::check_calibration_gesture() {
     if (++calib_hold_ticks_ >= kCalibHoldTicks) {
         calib_gesture_latched_ = true;
         if (calibrated_) {
-            reset_calibration();
-            std::cout << "[TeleopTracker] gesture: teleop off -> g1\n";
+            // teleop off: stop publishing but keep the neck capture — the
+            // next engage recalibrates wrists and needs no reference pose.
+            calibrated_ = false;
+            vr3point_buf.Clear();
+            std::cout << "[TeleopTracker] gesture (B 1s): teleop off -> g1\n";
         } else {
             request_calibration();
-            std::cout << "[TeleopTracker] gesture: calibrating -> teleop on\n";
+            std::cout << "[TeleopTracker] gesture (B 1s): calibrating -> teleop on\n";
             if (!PicoVRReader::instance().body_buf.GetData())
                 std::cerr << "[TeleopTracker] WARNING: no body tracking data — "
                              "calibration is pending until it arrives "
@@ -181,19 +187,36 @@ void TeleopTracker::capture_calibration(const Raw3Point& raw) {
         have_neck_calib_ = true;
     }
 
-    // Wrist offsets against the G1 zero-pose FK reference,
-    // in the neck-corrected frame.
+    // Wrist reference: FK of the measured robot joints when available —
+    // the operator's current wrists map onto the robot's current wrists,
+    // so engaging is jump-free. Zero-pose constants otherwise (gear_sonic
+    // recalibrate_for_vr3pt fallback).
+    std::array<double, 3> ref_l_pos = kG1LWristPos, ref_r_pos = kG1RWristPos;
+    std::array<double, 4> ref_l_rot = kG1LWristQuat, ref_r_rot = kG1RWristQuat;
+    std::array<double, 29> q;
+    if (measured_q_provider_ && measured_q_provider_(q)) {
+        auto fk_l = g1_wrist_fk(q, true);
+        auto fk_r = g1_wrist_fk(q, false);
+        ref_l_pos = fk_l.position;   ref_l_rot = fk_l.quaternion;
+        ref_r_pos = fk_r.position;   ref_r_rot = fk_r.quaternion;
+        std::cout << "[TeleopTracker] wrist reference: measured-q FK\n";
+    } else {
+        std::cout << "[TeleopTracker] WARNING: no measured joints — "
+                     "wrist reference falls back to the zero pose\n";
+    }
+
+    // Wrist offsets against the reference, in the neck-corrected frame.
     auto lw_pos = quat_rotate(neck_quat_inv_, raw.pos[0]);
     auto rw_pos = quat_rotate(neck_quat_inv_, raw.pos[1]);
     auto lw_rot = quat_mul(neck_quat_inv_, raw.quat[0]);
     auto rw_rot = quat_mul(neck_quat_inv_, raw.quat[1]);
 
     for (int i = 0; i < 3; ++i) {
-        lwrist_pos_offset_[i] = lw_pos[i] - kG1LWristPos[i];
-        rwrist_pos_offset_[i] = rw_pos[i] - kG1RWristPos[i];
+        lwrist_pos_offset_[i] = lw_pos[i] - ref_l_pos[i];
+        rwrist_pos_offset_[i] = rw_pos[i] - ref_r_pos[i];
     }
-    lwrist_rot_offset_ = quat_mul(kG1LWristQuat, quat_conjugate(lw_rot));
-    rwrist_rot_offset_ = quat_mul(kG1RWristQuat, quat_conjugate(rw_rot));
+    lwrist_rot_offset_ = quat_mul(ref_l_rot, quat_conjugate(lw_rot));
+    rwrist_rot_offset_ = quat_mul(ref_r_rot, quat_conjugate(rw_rot));
 
     calibrated_ = true;
     std::cout << "[TeleopTracker] calibration captured"

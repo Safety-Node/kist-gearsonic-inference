@@ -74,6 +74,7 @@ target_link_libraries(input_handler PUBLIC pico_vr_reader)
 # ─── teleop_tracker ──────────────────────────────────────────────────────────
 add_library(teleop_tracker STATIC
     src/teleop/teleop_tracker.cpp
+    src/teleop/g1_arm_fk.cpp
 )
 target_include_directories(teleop_tracker PUBLIC include)
 target_link_libraries(teleop_tracker PUBLIC pico_vr_reader)

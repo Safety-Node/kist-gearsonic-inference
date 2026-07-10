@@ -4,6 +4,7 @@
 // gear_sonic ThreePointPose math; also a regression tool for refactors.
 
 #include "pico/pico_vr_reader.hpp"
+#include "teleop/g1_arm_fk.hpp"
 #include "teleop/teleop_tracker.hpp"
 
 #include <chrono>
@@ -64,6 +65,40 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     print_out("moved");
 
+    // frame 3: recalibration with a measured-q wrist reference —
+    // neck must be preserved, wrist offsets recomputed against FK(q)
+    tracker.set_measured_q_provider([](std::array<double, 29>& q) {
+        for (int i = 0; i < 29; ++i)
+            q[i] = 0.3 * std::sin(0.5 * i + 1.0);
+        return true;
+    });
+    tracker.request_calibration();
+    body_buf.SetData(make_body(1.6));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    print_out("recal");
+
     tracker.stop();
+
+    // ── wrist FK: zero pose (must match calibration reference constants),
+    //    then a deterministic non-zero pose (verified vs URDF-chain python) ──
+    std::array<double, 29> q{};
+    auto pl = g1_wrist_fk(q, true);
+    auto pr = g1_wrist_fk(q, false);
+    std::printf("fk0 L: %.6f %.6f %.6f | %.6f %.6f %.6f %.6f\n",
+                pl.position[0], pl.position[1], pl.position[2],
+                pl.quaternion[0], pl.quaternion[1], pl.quaternion[2], pl.quaternion[3]);
+    std::printf("fk0 R: %.6f %.6f %.6f | %.6f %.6f %.6f %.6f\n",
+                pr.position[0], pr.position[1], pr.position[2],
+                pr.quaternion[0], pr.quaternion[1], pr.quaternion[2], pr.quaternion[3]);
+
+    for (int i = 0; i < 29; ++i) q[i] = 0.3 * std::sin(0.5 * i + 1.0);
+    pl = g1_wrist_fk(q, true);
+    pr = g1_wrist_fk(q, false);
+    std::printf("fk1 L: %.6f %.6f %.6f | %.6f %.6f %.6f %.6f\n",
+                pl.position[0], pl.position[1], pl.position[2],
+                pl.quaternion[0], pl.quaternion[1], pl.quaternion[2], pl.quaternion[3]);
+    std::printf("fk1 R: %.6f %.6f %.6f | %.6f %.6f %.6f %.6f\n",
+                pr.position[0], pr.position[1], pr.position[2],
+                pr.quaternion[0], pr.quaternion[1], pr.quaternion[2], pr.quaternion[3]);
     return 0;
 }

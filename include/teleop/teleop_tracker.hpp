@@ -7,6 +7,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <thread>
 
 namespace kist {
@@ -36,11 +37,21 @@ public:
     // the reference pose: upright, upper arms down, forearms bent 90°
     // forward, palms inward, looking straight ahead (= robot zero pose).
     //
-    // Controller gesture (both triggers held 1s) toggles: not calibrated
-    // -> calibrate (teleop on); calibrated -> reset (back to g1).
+    // Controller gesture (B held 1s, triggers released) toggles: not
+    // calibrated -> calibrate (teleop on); calibrated -> teleop off.
+    // The neck capture survives toggling (original preserves it across
+    // VR_3PT entries); the reference pose is only needed the first time.
     void request_calibration() { calibrate_request_ = true; }
-    void reset_calibration()   { reset_request_ = true; }
+    void reset_calibration()   { reset_request_ = true; }  // full reset, incl. neck
     bool calibrated() const    { return calibrated_; }
+
+    // Measured robot joints (MuJoCo/DDS order) for the wrist calibration
+    // reference — gear_sonic recalibrate_for_vr3pt: with a provider, each
+    // engage maps the operator's current wrists to the robot's current
+    // wrists (FK), so teleop starts jump-free. Without one (or when it
+    // returns false) the zero-pose FK constants are used. Set before start().
+    using MeasuredQProvider = std::function<bool(std::array<double, 29>&)>;
+    void set_measured_q_provider(MeasuredQProvider p) { measured_q_provider_ = std::move(p); }
 
     // ── output ──────────────────────────────────────────────────
     DataBuffer<VR3Point> vr3point_buf;
@@ -67,10 +78,12 @@ private:
     std::array<double, 3> lwrist_pos_offset_{}, rwrist_pos_offset_{};
     std::array<double, 4> lwrist_rot_offset_{}, rwrist_rot_offset_{};
 
+    MeasuredQProvider measured_q_provider_;
+
     // Body samples carry no device timestamp; dedup by buffer receive time.
     std::chrono::steady_clock::time_point last_body_time_{};
 
-    // both-triggers-held calibration gesture (tracker thread only)
+    // B-held calibration gesture (tracker thread only)
     int  calib_hold_ticks_{0};
     bool calib_gesture_latched_{false};
 
@@ -82,7 +95,7 @@ private:
     std::atomic<bool> stop_{false};
 
     static constexpr double kLoopDt = 0.02;  // 50Hz, original POSE loop rate
-    static constexpr double kCalibTrigger   = 0.8;  // deep squeeze, above the 0.5 modifier
+    static constexpr double kTriggerIdle    = 0.5;  // gesture needs triggers released
     static constexpr int    kCalibHoldTicks = 50;   // 1s at 50Hz
 };
 
