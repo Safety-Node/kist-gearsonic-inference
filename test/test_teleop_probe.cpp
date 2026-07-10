@@ -13,9 +13,8 @@
 
 using namespace kist;
 
-static PicoVRBodyPose make_body(double phase, int64_t stamp) {
+static PicoVRBodyPose make_body(double phase) {
     PicoVRBodyPose b;
-    b.timestamp_ns = stamp;
     for (int i = 0; i < 24; ++i) {
         auto& j = b.joints[i];
         j[0] = 0.10 * std::sin(0.3 * i + phase);
@@ -55,13 +54,13 @@ int main() {
     tracker.start();
 
     // frame 1: capture calibration, output = calibrated same frame
-    body_buf.SetData(make_body(0.0, 1));
+    body_buf.SetData(make_body(0.0));
     tracker.request_calibration();
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     print_out("calib");
 
     // frame 2: different pose through the captured calibration
-    body_buf.SetData(make_body(0.8, 2));
+    body_buf.SetData(make_body(0.8));
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     print_out("moved");
 

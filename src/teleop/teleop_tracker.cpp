@@ -85,13 +85,13 @@ void TeleopTracker::loop() {
 
         check_calibration_gesture();
 
-        auto body = PicoVRReader::instance().body_buf.GetData();
-        if (!body) {
+        auto body = PicoVRReader::instance().body_buf.GetDataWithTime();
+        if (!body.HasData()) {
             // body tracking absent/stale — no teleop target
             vr3point_buf.Clear();
-        } else if (body->timestamp_ns != last_body_stamp_ns_) {
-            last_body_stamp_ns_ = body->timestamp_ns;
-            process(*body);
+        } else if (body.timestamp != last_body_time_) {
+            last_body_time_ = body.timestamp;
+            process(*body.data);
         }
 
         std::this_thread::sleep_until(t0 + period);
@@ -120,6 +120,10 @@ void TeleopTracker::check_calibration_gesture() {
         } else {
             request_calibration();
             std::cout << "[TeleopTracker] gesture: calibrating -> teleop on\n";
+            if (!PicoVRReader::instance().body_buf.GetData())
+                std::cerr << "[TeleopTracker] WARNING: no body tracking data — "
+                             "calibration is pending until it arrives "
+                             "(enable body tracking on the headset)\n";
         }
     }
 }

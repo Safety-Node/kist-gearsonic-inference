@@ -6,7 +6,7 @@
 
 #include <array>
 #include <atomic>
-#include <cstdint>
+#include <chrono>
 #include <thread>
 
 namespace kist {
@@ -67,7 +67,8 @@ private:
     std::array<double, 3> lwrist_pos_offset_{}, rwrist_pos_offset_{};
     std::array<double, 4> lwrist_rot_offset_{}, rwrist_rot_offset_{};
 
-    int64_t last_body_stamp_ns_{0};
+    // Body samples carry no device timestamp; dedup by buffer receive time.
+    std::chrono::steady_clock::time_point last_body_time_{};
 
     // both-triggers-held calibration gesture (tracker thread only)
     int  calib_hold_ticks_{0};
