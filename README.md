@@ -73,3 +73,17 @@ Connect the headset from its XRoboToolkit app.
 ```bash
 ./build/gearsonic
 ```
+
+### Controller
+
+| Input | Action |
+|---|---|
+| Left stick | Move (magnitude = speed) |
+| Right stick | Rotate facing |
+| A | Return to IDLE |
+| Y | Mode up (IDLE / Slow Walk / Walk) |
+| Trigger + Y | Mode up (hard actions, e.g. Run) |
+| X | Mode down |
+| Trigger + B / A | Height up / down (crouch modes) |
+| B held 1s | Teleop on / off (first on: hold the reference pose — forearms 90° forward, palms inward, look straight ahead) |
+| Both grips 1s | Emergency stop |
