@@ -67,3 +67,9 @@ run_vr_daemon
 ```
 
 Connect the headset from its XRoboToolkit app.
+
+### 2. Control
+
+```bash
+./build/gearsonic
+```

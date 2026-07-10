@@ -1,16 +1,16 @@
-// FULL LIVE TEST — THE ROBOT WILL MOVE.
+// Main deployment entry — THE ROBOT WILL MOVE.
 //
-//   VR joystick -> InputHandler -> PlannerInference -> WholeBodyController
-//     -> motor_command_buf -> UnitreeCommandWriter -> rt/lowcmd (DDS)
+//   VR joystick -> InputHandler ─┐
+//   VR body    -> TeleopTracker ─┤ -> PlannerInference (10Hz)
+//                                └-> WholeBodyController (50Hz)
+//                                    -> UnitreeCommandWriter (500Hz, rt/lowcmd)
 //
-// Safety gating:
-//   1. First Enter  : starts the writer + control loop -> 3s INIT ramp
-//                     (robot moves to the default standing pose).
-//   2. Second Enter : WAIT_FOR_CONTROL -> CONTROL (policy takes over).
-//   Ctrl+C          : damping command (kp=0, kd=8) then exit.
-//
-// Preconditions: robot suspended or in a safe area, built-in sport
-// controller released (damping via remote), headset connected.
+// Operator flow:
+//   Enter        : 3s INIT ramp to the standing pose
+//   Enter        : hand over to the policy (WAIT_FOR_CONTROL -> CONTROL)
+//   both triggers 1s : teleop on (calibrate at reference pose) / off
+//   both grips 1s    : emergency stop (latched, damping)
+//   Ctrl+C       : damping, orderly shutdown
 
 #include "common/config.hpp"
 #include "control/whole_body_controller.hpp"
@@ -39,10 +39,12 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, on_sigint);
 
     // ── inputs ──────────────────────────────────────────────────
+    // VR is mandatory: the joystick drives the planner and the grips
+    // are the operator e-stop.
     auto& vr = kist::PicoVRReader::instance();
-    vr.start();
+    if (!vr.start())
+        return 1;
     kist::InputHandler::instance().start();
-    // teleop: reference pose + both triggers 1s -> calibrate -> encoder mode 1
     kist::TeleopTracker::instance().start();
 
     auto& robot = kist::UnitreeStateReader::instance();
@@ -55,7 +57,6 @@ int main(int argc, char** argv) {
         if (g_quit) return 0;
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-    std::cout << "Robot state received.\n";
 
     // ── planner + control ───────────────────────────────────────
     auto& planner = kist::PlannerInference::instance();
@@ -94,26 +95,22 @@ int main(int argc, char** argv) {
             control.start_control();
     }
 
-    // ── monitor until Ctrl+C ────────────────────────────────────
+    // ── status until Ctrl+C ─────────────────────────────────────
     while (!g_quit) {
-        auto cmd = control.motor_command_buf.GetDataWithTime();
-        auto t   = control.last_timing();
-        if (cmd.HasData()) {
-            std::cout << std::fixed << std::setprecision(3)
-                      << "[Live] state=" << static_cast<int>(control.state())
-                      << "  mode=" << kist::InputHandler::instance().mode()
-                      << "  enc=" << control.encoder_mode()
-                      << "  q[0]=" << cmd.data->q_target[0]
-                      << "  q[3]=" << cmd.data->q_target[3]
-                      << "  tick=" << t.total << "us\n";
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        auto t = control.last_timing();
+        std::cout << "state=" << static_cast<int>(control.state())
+                  << "  mode=" << kist::InputHandler::instance().mode()
+                  << "  enc=" << control.encoder_mode()
+                  << "  tick=" << t.total << "us"
+                  << (kist::InputHandler::instance().estop() ? "  [E-STOP]" : "")
+                  << "\n";
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     // ── shutdown: damping before anything else stops ────────────
     std::cout << "\nStopping: damping...\n";
     control.stop();
-    writer.stop();   // publishes damping burst
+    writer.stop();
     planner.stop();
     kist::TeleopTracker::instance().stop();
     kist::InputHandler::instance().stop();

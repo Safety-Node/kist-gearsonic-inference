@@ -71,6 +71,13 @@ add_library(input_handler STATIC
 target_include_directories(input_handler PUBLIC include)
 target_link_libraries(input_handler PUBLIC pico_vr_reader)
 
+# ─── teleop_tracker ──────────────────────────────────────────────────────────
+add_library(teleop_tracker STATIC
+    src/teleop/teleop_tracker.cpp
+)
+target_include_directories(teleop_tracker PUBLIC include)
+target_link_libraries(teleop_tracker PUBLIC pico_vr_reader)
+
 # ─── control ─────────────────────────────────────────────────────────────────
 add_library(control STATIC
     src/control/obs_dict_model.cpp
@@ -79,8 +86,13 @@ add_library(control STATIC
     src/control/whole_body_controller.cpp
 )
 target_include_directories(control PUBLIC include)
-target_link_libraries(control PUBLIC tensorrt_inference planner_inference unitree_state_reader)
+target_link_libraries(control PUBLIC tensorrt_inference planner_inference unitree_state_reader teleop_tracker)
 set_target_properties(control PROPERTIES CXX_STANDARD 20)
+
+# ─── main ─────────────────────────────────────────────────────────────────────
+add_executable(gearsonic src/main.cpp)
+target_link_libraries(gearsonic PRIVATE control unitree_command_writer yaml-cpp)
+set_target_properties(gearsonic PROPERTIES CXX_STANDARD 20)
 
 # ─── tests ────────────────────────────────────────────────────────────────────
 add_executable(test_pico_vr_reader test/test_pico_vr_reader.cpp)
@@ -125,3 +137,9 @@ target_link_libraries(release_motion_service PRIVATE unitree_state_reader yaml-c
 add_executable(test_stage_probe test/test_stage_probe.cpp)
 target_link_libraries(test_stage_probe PRIVATE control yaml-cpp)
 set_target_properties(test_stage_probe PROPERTIES CXX_STANDARD 20)
+
+add_executable(test_teleop_probe test/test_teleop_probe.cpp)
+target_link_libraries(test_teleop_probe PRIVATE teleop_tracker)
+
+add_executable(test_teleop_live test/test_teleop_live.cpp)
+target_link_libraries(test_teleop_live PRIVATE teleop_tracker)
