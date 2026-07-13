@@ -48,16 +48,11 @@ int main(int argc, char** argv) {
     if (!vr.start())
         return 1;
     kist::InputHandler::instance().start();
-    // wrist calibration reference = FK of the robot's measured joints
-    kist::TeleopTracker::instance().set_measured_q_provider(
-        [](std::array<double, 29>& q) {
-            auto st = kist::UnitreeStateReader::instance().unitree_state_buf.GetData();
-            if (!st)
-                return false;
-            for (int i = 0; i < 29; ++i)
-                q[i] = st->motors[i].q;
-            return true;
-        });
+    // Wrist calibration reference stays at the zero pose (matches the
+    // operator's horizontal-forearm reference pose). To experiment with
+    // the measured-q reference instead, wire set_measured_q_provider()
+    // here — the operator must then match the robot's actual arm pose
+    // at engage.
     kist::TeleopTracker::instance().start();
 
     auto& robot = kist::UnitreeStateReader::instance();

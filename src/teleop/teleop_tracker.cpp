@@ -118,9 +118,12 @@ void TeleopTracker::check_calibration_gesture() {
     if (++calib_hold_ticks_ >= kCalibHoldTicks) {
         calib_gesture_latched_ = true;
         if (calibrated_) {
-            // teleop off: stop publishing but keep the neck capture — the
-            // next engage recalibrates wrists and needs no reference pose.
-            calibrated_ = false;
+            // teleop off: full reset — calibration is stateless across
+            // engages. Every engage recaptures neck + wrists fresh in the
+            // reference pose, so a bad or stale capture never outlives
+            // one on/off cycle.
+            have_neck_calib_ = false;
+            calibrated_      = false;
             vr3point_buf.Clear();
             std::cout << "[TeleopTracker] gesture (B 1s): teleop off -> g1\n";
         } else {
@@ -187,22 +190,30 @@ void TeleopTracker::capture_calibration(const Raw3Point& raw) {
         have_neck_calib_ = true;
     }
 
-    // Wrist reference: FK of the measured robot joints when available —
-    // the operator's current wrists map onto the robot's current wrists,
-    // so engaging is jump-free. Zero-pose constants otherwise (gear_sonic
-    // recalibrate_for_vr3pt fallback).
+    // Wrist reference: zero-pose FK constants by default — the zero pose
+    // has horizontal forearms, exactly the operator's reference pose, so
+    // the anchors correspond anatomically. The measured-q reference
+    // (gear_sonic recalibrate_for_vr3pt) is opt-in via the provider: it is
+    // only accurate when the operator matches the robot's *actual* pose at
+    // engage (default stance = forearms 34° down), which proved impractical
+    // on hardware — anchoring horizontal to sagged forearms skews every
+    // target ~0.2m low and the arms strain at the workspace edge.
     std::array<double, 3> ref_l_pos = kG1LWristPos, ref_r_pos = kG1RWristPos;
     std::array<double, 4> ref_l_rot = kG1LWristQuat, ref_r_rot = kG1RWristQuat;
     std::array<double, 29> q;
-    if (measured_q_provider_ && measured_q_provider_(q)) {
-        auto fk_l = g1_wrist_fk(q, true);
-        auto fk_r = g1_wrist_fk(q, false);
-        ref_l_pos = fk_l.position;   ref_l_rot = fk_l.quaternion;
-        ref_r_pos = fk_r.position;   ref_r_rot = fk_r.quaternion;
-        std::cout << "[TeleopTracker] wrist reference: measured-q FK\n";
+    if (measured_q_provider_) {
+        if (measured_q_provider_(q)) {
+            auto fk_l = g1_wrist_fk(q, true);
+            auto fk_r = g1_wrist_fk(q, false);
+            ref_l_pos = fk_l.position;   ref_l_rot = fk_l.quaternion;
+            ref_r_pos = fk_r.position;   ref_r_rot = fk_r.quaternion;
+            std::cout << "[TeleopTracker] wrist reference: measured-q FK\n";
+        } else {
+            std::cout << "[TeleopTracker] WARNING: measured-q provider gave no "
+                         "joints — wrist reference falls back to the zero pose\n";
+        }
     } else {
-        std::cout << "[TeleopTracker] WARNING: no measured joints — "
-                     "wrist reference falls back to the zero pose\n";
+        std::cout << "[TeleopTracker] wrist reference: zero pose\n";
     }
 
     // Wrist offsets against the reference, in the neck-corrected frame.

@@ -38,18 +38,22 @@ public:
     // forward, palms inward, looking straight ahead (= robot zero pose).
     //
     // Controller gesture (B held 1s, triggers released) toggles: not
-    // calibrated -> calibrate (teleop on); calibrated -> teleop off.
-    // The neck capture survives toggling (original preserves it across
-    // VR_3PT entries); the reference pose is only needed the first time.
+    // calibrated -> calibrate (teleop on); calibrated -> teleop off
+    // (full reset). Calibration is stateless: every engage captures neck
+    // + wrists fresh, in the full reference pose (forearms 90° forward,
+    // palms inward, looking straight ahead) — a bad capture is cured by
+    // toggling off and on, and nothing stale survives a cycle.
     void request_calibration() { calibrate_request_ = true; }
-    void reset_calibration()   { reset_request_ = true; }  // full reset, incl. neck
+    void reset_calibration()   { reset_request_ = true; }
     bool calibrated() const    { return calibrated_; }
 
-    // Measured robot joints (MuJoCo/DDS order) for the wrist calibration
-    // reference — gear_sonic recalibrate_for_vr3pt: with a provider, each
-    // engage maps the operator's current wrists to the robot's current
-    // wrists (FK), so teleop starts jump-free. Without one (or when it
-    // returns false) the zero-pose FK constants are used. Set before start().
+    // OPT-IN: measured robot joints (MuJoCo/DDS order) as the wrist
+    // calibration reference (gear_sonic recalibrate_for_vr3pt) — maps the
+    // operator's engage-moment wrists to the robot's current wrists (FK),
+    // jump-free. Only accurate if the operator matches the robot's actual
+    // arm pose at engage; with the standard reference pose the default
+    // zero-pose constants are the anatomically correct anchor (hardware-
+    // verified). Set before start().
     using MeasuredQProvider = std::function<bool(std::array<double, 29>&)>;
     void set_measured_q_provider(MeasuredQProvider p) { measured_q_provider_ = std::move(p); }
 
