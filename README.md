@@ -94,6 +94,8 @@ cmake -B build && cmake --build build
 
 ### 1. XRoboToolkit (PICO VR daemon)
 
+With Docker, run this on the host, outside the container.
+
 ```bash
 source env.sh
 run_vr_daemon
