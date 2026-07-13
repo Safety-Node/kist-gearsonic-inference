@@ -111,8 +111,7 @@ if (!sys.start("config/config.yaml"))    // THE ROBOT MOVES: 3s ramp, then polic
 // zeros = stop, going silent = fallback to manual. Joystick always wins.
 kist::InputHandler::instance().nav_buf.SetData({vx, vy, vyaw});
 
-while (!sys.quit_requested())
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+// ... your application runs here (keep the process alive) ...
 
 sys.stop();                              // publishes damping — call on every exit path
 ```
