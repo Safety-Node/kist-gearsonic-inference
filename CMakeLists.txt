@@ -10,8 +10,8 @@ find_package(CUDAToolkit REQUIRED)
 # ─── thirdparty: PXREARobotSDK ────────────────────────────────────────────────
 add_library(pxrea SHARED IMPORTED)
 set_target_properties(pxrea PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/thirdparty/pxrea/lib/libPXREARobotSDK.so
-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/thirdparty/pxrea/include
+    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pxrea/lib/libPXREARobotSDK.so
+    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pxrea/include
 )
 
 # ─── thirdparty: unitree_sdk2 ─────────────────────────────────────────────────
@@ -90,9 +90,17 @@ target_include_directories(control PUBLIC include)
 target_link_libraries(control PUBLIC tensorrt_inference planner_inference unitree_state_reader teleop_tracker)
 set_target_properties(control PROPERTIES CXX_STANDARD 20)
 
+# ─── gearsonic_system (system facade — the external C++ API) ─────────────────
+add_library(gearsonic_system STATIC
+    src/system/gearsonic_system.cpp
+)
+target_include_directories(gearsonic_system PUBLIC include)
+target_link_libraries(gearsonic_system PUBLIC control unitree_command_writer yaml-cpp)
+set_target_properties(gearsonic_system PROPERTIES CXX_STANDARD 20)
+
 # ─── main ─────────────────────────────────────────────────────────────────────
 add_executable(gearsonic src/main.cpp)
-target_link_libraries(gearsonic PRIVATE control unitree_command_writer yaml-cpp)
+target_link_libraries(gearsonic PRIVATE gearsonic_system)
 set_target_properties(gearsonic PROPERTIES CXX_STANDARD 20)
 
 # ─── tests ────────────────────────────────────────────────────────────────────
@@ -125,3 +133,6 @@ target_link_libraries(test_teleop_probe PRIVATE teleop_tracker)
 
 add_executable(test_teleop_live test/test_teleop_live.cpp)
 target_link_libraries(test_teleop_live PRIVATE teleop_tracker)
+
+add_executable(test_nav_command test/test_nav_command.cpp)
+target_link_libraries(test_nav_command PRIVATE input_handler)
