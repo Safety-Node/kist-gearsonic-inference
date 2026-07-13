@@ -61,7 +61,10 @@ wget -P models https://huggingface.co/nvidia/GEAR-SONIC/resolve/main/planner_son
 
 ONNX models are converted to TensorRT engines automatically on first run.
 
-## Docker
+## Docker (optional)
+
+The container ships CUDA, TensorRT, and yaml-cpp — with it, skip those
+host installs. The XRoboToolkit daemon still runs on the host.
 
 ```bash
 ./docker/build.sh   # build the image (once)
@@ -69,8 +72,6 @@ ONNX models are converted to TensorRT engines automatically on first run.
 ```
 
 ## Build
-
-Inside the container:
 
 ```bash
 cmake -B build && cmake --build build
