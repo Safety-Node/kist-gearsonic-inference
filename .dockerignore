@@ -1,0 +1,3 @@
+# Nothing is COPYed into the image — sources are volume-mounted at run
+# time (see docker/run.sh), so the build context needs no files at all.
+*

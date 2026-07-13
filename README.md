@@ -51,7 +51,16 @@ git clone https://github.com/unitreerobotics/unitree_sdk2.git thirdparty/unitree
 sudo apt install libyaml-cpp-dev
 ```
 
+## Docker
+
+```bash
+./docker/build.sh   # build the image (once)
+./docker/run.sh     # create or attach the container
+```
+
 ## Build
+
+Inside the container:
 
 ```bash
 cmake -B build && cmake --build build

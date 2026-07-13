@@ -1,4 +1,4 @@
-# Development container for x86_64 workstation.
+# x86_64 workstation container.
 # TensorRT 10.7 + CUDA 12.6 to match the Jetson (JetPack 6 / TRT 10.7) target.
 FROM nvcr.io/nvidia/tensorrt:24.12-py3
 

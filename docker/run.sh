@@ -23,5 +23,5 @@ else
         --cap-add=SYS_NICE \
         -v "${REPO_DIR}:/workspace/kist-gearsonic-inference" \
         -w /workspace/kist-gearsonic-inference \
-        kist-inference-dev
+        kist-inference
 fi
