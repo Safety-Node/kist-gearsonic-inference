@@ -84,6 +84,8 @@ CUDA 12.6 and TensorRT 10.7, per the NVIDIA guides:
 
 ## Build
 
+With Docker, run this inside the container (`./docker/run.sh`).
+
 ```bash
 cmake -B build && cmake --build build
 ```
