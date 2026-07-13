@@ -17,14 +17,24 @@ C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid rob
 | `CUDA == 12.6` | GPU runtime for TensorRT inference |
 | `TensorRT == 10.7` | ONNX → TRT engine conversion and inference |
 
-### Installing XRoboToolkit
+## Installation
+
+### Clone Repository
+```bash
+git clone https://github.com/Safety-Node/kist-gearsonic-inference.git
+cd kist-gearsonic-inference
+```
+
+All following steps run from the repository root.
+
+### Install XRoboToolkit
 
 ```bash
 wget https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases/download/v1.0.0/XRoboToolkit_PC_Service_1.0.0_ubuntu_22.04_amd64.deb
 sudo dpkg -i XRoboToolkit_PC_Service_1.0.0_ubuntu_22.04_amd64.deb
 ```
 
-### Installing libPXREARobotSDK
+### Install libPXREARobotSDK
 
 ```bash
 mkdir -p thirdparty/pxrea/lib thirdparty/pxrea/include
@@ -39,19 +49,13 @@ cp -r thirdparty/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/nlohmann 
 cp thirdparty/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build/libPXREARobotSDK.so thirdparty/pxrea/lib/
 ```
 
-### Installing unitree_sdk2
+### Install unitree_sdk2
 
 ```bash
 git clone https://github.com/unitreerobotics/unitree_sdk2.git thirdparty/unitree_sdk2
 ```
 
-### Installing yaml-cpp
-
-```bash
-sudo apt install libyaml-cpp-dev
-```
-
-## Models
+### Download Models
 
 ```bash
 wget -P models https://huggingface.co/nvidia/GEAR-SONIC/resolve/main/model_encoder.onnx
@@ -60,6 +64,23 @@ wget -P models https://huggingface.co/nvidia/GEAR-SONIC/resolve/main/planner_son
 ```
 
 ONNX models are converted to TensorRT engines automatically on first run.
+
+Everything below is included in the Docker image — build it with
+`./docker/build.sh`, enter it with `./docker/run.sh`, and run everything
+from Build on inside the container.
+
+### Install yaml-cpp
+
+```bash
+sudo apt install libyaml-cpp-dev
+```
+
+### Install CUDA and TensorRT
+
+CUDA 12.6 and TensorRT 10.7, per the NVIDIA guides:
+
+- https://developer.nvidia.com/cuda-12-6-0-download-archive
+- https://docs.nvidia.com/deeplearning/tensorrt/install-guide/
 
 ## Build
 
