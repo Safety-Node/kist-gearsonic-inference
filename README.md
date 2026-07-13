@@ -54,10 +54,9 @@ sudo apt install libyaml-cpp-dev
 ## Models
 
 ```bash
-pip install "huggingface_hub[cli]"
-hf download nvidia/GEAR-SONIC \
-    model_encoder.onnx model_decoder.onnx planner_sonic.onnx \
-    --local-dir models
+wget -P models https://huggingface.co/nvidia/GEAR-SONIC/resolve/main/model_encoder.onnx
+wget -P models https://huggingface.co/nvidia/GEAR-SONIC/resolve/main/model_decoder.onnx
+wget -P models https://huggingface.co/nvidia/GEAR-SONIC/resolve/main/planner_sonic.onnx
 ```
 
 ONNX models are converted to TensorRT engines automatically on first run.
