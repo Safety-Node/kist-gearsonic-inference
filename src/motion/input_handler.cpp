@@ -32,6 +32,13 @@ static constexpr int    kEstopHoldTicks = 500;  // 1s at 500Hz
 static constexpr double kDeadZone   = 0.15;   // gear_sonic JOYSTICK_DEADZONE
 static constexpr double kFacingRate = 1.5;    // rad/s at full stick (gear_sonic yaw_gain)
 static constexpr double kLoopDt     = 0.002;  // 500Hz
+// External nav commands: fresh within this window (producer ~20Hz), and
+// |v| below the stop threshold means "arrived — stand still". Speeds up
+// to the slow-walk band map onto SLOW_WALK; anything faster uses WALK's
+// mode-default speed.
+static constexpr double kNavStaleMs   = 300.0;
+static constexpr double kNavStopSpeed = 0.05;  // m/s
+static constexpr double kNavSlowMax   = 0.6;   // SLOW_WALK speed ceiling
 
 InputHandler& InputHandler::instance() {
     static InputHandler inst;
@@ -119,12 +126,44 @@ void InputHandler::loop() {
 
             int                   final_mode;
             double                final_speed;
+            double                final_height = height_;
             std::array<double, 3> final_move{0.0, 0.0, 0.0};
 
             double raw_mag = std::hypot(lx, ly);
             if (raw_mag < kDeadZone) {
                 final_mode  = static_cast<int>(LocomotionMode::IDLE);
                 final_speed = -1.0;
+
+                // ── nav arbitration: stick neutral -> a fresh external
+                //    command drives instead (momentary priority) ─────
+                auto nav = nav_buf.GetDataWithTime();
+                if (nav.HasData() && nav.GetAgeMs() < kNavStaleMs) {
+                    double v = std::hypot(nav.data->vx, nav.data->vy);
+                    final_height = -1.0;  // nav modes are non-crouch
+
+                    // yaw rate integrates into facing, joystick-style
+                    facing_angle_ += nav.data->vyaw * kLoopDt;
+                    final_face = {std::cos(facing_angle_), std::sin(facing_angle_), 0.0};
+
+                    if (v >= kNavStopSpeed) {
+                        if (v <= kNavSlowMax) {
+                            final_mode  = static_cast<int>(LocomotionMode::SLOW_WALK);
+                            final_speed = std::max(v, 0.1);
+                        } else {
+                            final_mode  = static_cast<int>(LocomotionMode::WALK);
+                            final_speed = -1.0;  // mode default
+                        }
+                        // body-frame (vx fwd, vy left) -> world via facing
+                        double fwd_c = nav.data->vx / v;
+                        double left_c = nav.data->vy / v;
+                        final_move = {
+                            -final_face[1] * left_c + final_face[0] * fwd_c,
+                             final_face[0] * left_c + final_face[1] * fwd_c,
+                             0.0
+                        };
+                    }
+                    // v < stop threshold: keep IDLE — nav says "stand still"
+                }
             } else {
                 double mag = std::min((raw_mag - kDeadZone) / (1.0 - kDeadZone), 1.0);
                 final_mode = mode_index_;
@@ -148,7 +187,7 @@ void InputHandler::loop() {
                 };
             }
 
-            movement_buf.SetData(MovementState(final_mode, final_move, final_face, final_speed, height_));
+            movement_buf.SetData(MovementState(final_mode, final_move, final_face, final_speed, final_height));
         } else {
             // VR link lost (stale watchdog cleared ctrl_buf) → safe stop:
             // IDLE with mode-default speed/height. Keep the current facing so

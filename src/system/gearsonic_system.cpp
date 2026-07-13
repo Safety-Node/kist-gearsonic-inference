@@ -1,0 +1,133 @@
+#include "system/gearsonic_system.hpp"
+
+#include "common/config.hpp"
+#include "control/whole_body_controller.hpp"
+#include "motion/input_handler.hpp"
+#include "pico/pico_vr_reader.hpp"
+#include "planner/planner_inference.hpp"
+#include "teleop/teleop_tracker.hpp"
+#include "unitree/unitree_command_writer.hpp"
+#include "unitree/unitree_state_reader.hpp"
+
+#include <chrono>
+#include <csignal>
+#include <exception>
+#include <iostream>
+#include <thread>
+
+namespace kist {
+
+GearsonicSystem& GearsonicSystem::instance() {
+    static GearsonicSystem inst;
+    return inst;
+}
+
+bool GearsonicSystem::start(const std::string& config_path) {
+    try {
+        Config::instance().load(config_path);
+    } catch (const std::exception& e) {
+        std::cerr << "[GearsonicSystem] config load failed: " << e.what() << "\n";
+        return false;
+    }
+    auto root = Config::instance().root();
+
+    // ── input stack (nothing moves yet) ─────────────────────────
+    // VR is mandatory: the joystick drives the planner and the grips
+    // are the operator e-stop.
+    if (!PicoVRReader::instance().start())
+        return false;
+    vr_started_ = true;
+    InputHandler::instance().start();
+    TeleopTracker::instance().start();
+
+    if (!UnitreeStateReader::instance().start(
+            root["unitree"]["domain_id"].as<int>(),
+            root["unitree"]["network_interface"].as<std::string>())) {
+        stop();
+        return false;
+    }
+    robot_started_ = true;
+
+    std::cout << "[GearsonicSystem] waiting for robot state...\n";
+    while (!UnitreeStateReader::instance().unitree_state_buf.GetData()) {
+        if (quit_) {
+            stop();
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
+    // ── planner ─────────────────────────────────────────────────
+    auto& planner = PlannerInference::instance();
+    if (!planner.start(root["planner"]["model_path"].as<std::string>())) {
+        stop();
+        return false;
+    }
+    planner_started_ = true;
+
+    auto& control = WholeBodyController::instance();
+    planner.set_playback_provider([&control](MotionSequence50Hz& m, int& c) {
+        return control.playback_snapshot(m, c);
+    });
+
+    // ── actuation: THE ROBOT MOVES FROM HERE ────────────────────
+    if (!UnitreeCommandWriter::instance().start(&control.motor_command_buf)) {
+        stop();
+        return false;
+    }
+    writer_started_ = true;
+
+    if (!control.start(root["control"]["encoder_path"].as<std::string>(),
+                       root["control"]["decoder_path"].as<std::string>(),
+                       /*auto_start_control=*/true)) {
+        stop();
+        return false;
+    }
+    control_started_ = true;
+
+    std::cout << "[GearsonicSystem] started — INIT ramp, then policy control\n";
+    return true;
+}
+
+void GearsonicSystem::stop() {
+    // Reverse order. The controller flushes damping into the command
+    // buffer, then the still-running writer publishes it before its own
+    // stop() sends the final damping burst.
+    if (control_started_) {
+        WholeBodyController::instance().stop();
+        control_started_ = false;
+    }
+    if (writer_started_) {
+        UnitreeCommandWriter::instance().stop();
+        writer_started_ = false;
+    }
+    if (planner_started_) {
+        PlannerInference::instance().stop();
+        planner_started_ = false;
+    }
+    if (vr_started_) {
+        TeleopTracker::instance().stop();
+        InputHandler::instance().stop();
+    }
+    if (robot_started_) {
+        UnitreeStateReader::instance().stop();
+        robot_started_ = false;
+    }
+    if (vr_started_) {
+        PicoVRReader::instance().stop();
+        vr_started_ = false;
+    }
+}
+
+// ── signals ───────────────────────────────────────────────────────────────────
+
+static void on_signal(int) {
+    GearsonicSystem::instance().request_quit();
+}
+
+void GearsonicSystem::install_signal_handlers() {
+    std::signal(SIGINT, on_signal);
+    std::signal(SIGTERM, on_signal);
+}
+
+} // namespace kist

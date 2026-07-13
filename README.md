@@ -87,3 +87,31 @@ Connect the headset from its XRoboToolkit app.
 | Trigger + B / A | Height up / down (crouch modes) |
 | B held 1s | Teleop on / off (engage in the reference pose: forearms 90° forward, palms inward) |
 | Both grips 1s | Emergency stop |
+
+## Usage
+
+Embedding as a C++ library:
+
+```cmake
+add_subdirectory(kist-gearsonic-inference)
+target_link_libraries(your_app PRIVATE gearsonic_system)
+```
+
+```cpp
+#include "system/gearsonic_system.hpp"
+#include "motion/input_handler.hpp"
+
+auto& sys = kist::GearsonicSystem::instance();
+sys.install_signal_handlers();           // or call sys.request_quit() from your own handler
+
+if (!sys.start("config/config.yaml"))    // THE ROBOT MOVES: 3s ramp, then policy control
+    return 1;
+
+// external navigation (optional): body-frame velocity, ~20Hz.
+// zeros = stop, going silent = fallback to manual. Joystick always wins.
+kist::InputHandler::instance().nav_buf.SetData({vx, vy, vyaw});
+
+// ... your application runs here (keep the process alive) ...
+
+sys.stop();                              // publishes damping — call on every exit path
+```
