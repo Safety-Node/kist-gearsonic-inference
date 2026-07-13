@@ -74,6 +74,7 @@ target_link_libraries(input_handler PUBLIC pico_vr_reader)
 # ─── teleop_tracker ──────────────────────────────────────────────────────────
 add_library(teleop_tracker STATIC
     src/teleop/teleop_tracker.cpp
+    src/teleop/g1_arm_fk.cpp
 )
 target_include_directories(teleop_tracker PUBLIC include)
 target_link_libraries(teleop_tracker PUBLIC pico_vr_reader)
@@ -98,35 +99,16 @@ set_target_properties(gearsonic PROPERTIES CXX_STANDARD 20)
 add_executable(test_pico_vr_reader test/test_pico_vr_reader.cpp)
 target_link_libraries(test_pico_vr_reader PRIVATE pico_vr_reader)
 
-add_executable(test_input_handler test/test_input_handler.cpp)
-target_link_libraries(test_input_handler PRIVATE input_handler)
-
 add_executable(test_unitree_state_reader test/test_unitree_state_reader.cpp)
 target_link_libraries(test_unitree_state_reader PRIVATE unitree_state_reader yaml-cpp)
-
-add_executable(test_trt_inference test/test_trt_inference.cpp)
-target_link_libraries(test_trt_inference PRIVATE tensorrt_inference)
-set_target_properties(test_trt_inference PROPERTIES CXX_STANDARD 20)
 
 add_executable(test_planner_inference test/test_planner_inference.cpp)
 target_link_libraries(test_planner_inference PRIVATE planner_inference yaml-cpp)
 set_target_properties(test_planner_inference PROPERTIES CXX_STANDARD 20)
 
-add_executable(test_planner_live test/test_planner_live.cpp)
-target_link_libraries(test_planner_live PRIVATE planner_inference yaml-cpp)
-set_target_properties(test_planner_live PROPERTIES CXX_STANDARD 20)
-
-add_executable(test_obs_dict_model test/test_obs_dict_model.cpp)
-target_link_libraries(test_obs_dict_model PRIVATE control yaml-cpp)
-set_target_properties(test_obs_dict_model PROPERTIES CXX_STANDARD 20)
-
 add_executable(test_control_dry test/test_control_dry.cpp)
 target_link_libraries(test_control_dry PRIVATE control yaml-cpp)
 set_target_properties(test_control_dry PROPERTIES CXX_STANDARD 20)
-
-add_executable(test_control_live test/test_control_live.cpp)
-target_link_libraries(test_control_live PRIVATE control unitree_command_writer yaml-cpp)
-set_target_properties(test_control_live PROPERTIES CXX_STANDARD 20)
 
 add_executable(lowcmd_monitor test/lowcmd_monitor.cpp)
 target_link_libraries(lowcmd_monitor PRIVATE unitree_state_reader yaml-cpp)

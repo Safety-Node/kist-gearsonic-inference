@@ -23,9 +23,9 @@ int main() {
         return 1;
     TeleopTracker::instance().start();
 
-    std::cout << "Toggle teleop: hold the reference pose (upper arms down, forearms\n"
-                 "90° forward, palms inward, look straight ahead) and squeeze BOTH\n"
-                 "triggers for 1 second. Same gesture again turns teleop off.\n";
+    std::cout << "Toggle teleop: hold B 1s (triggers released). Engage in the\n"
+                 "reference pose EVERY time: upper arms down, forearms 90° forward,\n"
+                 "palms inward, look straight ahead.\n";
 
     while (!g_stop) {
         auto v = TeleopTracker::instance().vr3point_buf.GetDataWithTime();
