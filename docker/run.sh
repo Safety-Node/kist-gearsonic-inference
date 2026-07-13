@@ -1,12 +1,12 @@
 #!/bin/bash
 # Launch (or re-attach to) a persistent named container.
 # Reuse across sessions so builds, caches, and background processes survive
-# until you explicitly `docker rm kist-inference`.
+# until you explicitly `docker rm kist-gearsonic-inference`.
 
 set -e
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONTAINER=kist-inference
+CONTAINER=kist-gearsonic-inference
 
 if [ "$(docker ps -q -f name=^${CONTAINER}$)" ]; then
     # Already running → attach a new shell to it
@@ -23,5 +23,5 @@ else
         --cap-add=SYS_NICE \
         -v "${REPO_DIR}:/workspace/kist-gearsonic-inference" \
         -w /workspace/kist-gearsonic-inference \
-        kist-inference-dev
+        kist-gearsonic-inference
 fi
