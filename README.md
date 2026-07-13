@@ -51,6 +51,17 @@ git clone https://github.com/unitreerobotics/unitree_sdk2.git thirdparty/unitree
 sudo apt install libyaml-cpp-dev
 ```
 
+## Models
+
+```bash
+pip install "huggingface_hub[cli]"
+hf download nvidia/GEAR-SONIC \
+    model_encoder.onnx model_decoder.onnx planner_sonic.onnx \
+    --local-dir models
+```
+
+ONNX models are converted to TensorRT engines automatically on first run.
+
 ## Docker
 
 ```bash
