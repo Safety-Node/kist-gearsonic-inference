@@ -4,7 +4,7 @@ C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid rob
 
 ## Architecture
 
-![Architecture](docs/kist-gearsonic-inference.svg)
+[![Architecture](docs/kist-gearsonic-inference.svg)](docs/kist-gearsonic-inference.svg)
 
 ## Dependencies
 
