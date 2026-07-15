@@ -12,7 +12,7 @@ C++ inference pipeline for GR00T WholeBodyControl on the Unitree G1 humanoid rob
 |---|---|
 | `XRoboToolkit` | PICO VR PC daemon |
 | `libPXREARobotSDK` | PICO VR C++ client library |
-| `unitree_sdk2` | Unitree G1 DDS client library |
+| `unitree_sdk2` | Unitree G1 + Dex3-1 hand DDS client library |
 | `yaml-cpp` | YAML config parser |
 | `CUDA == 12.6` | GPU runtime for TensorRT inference |
 | `TensorRT == 10.7` | ONNX → TRT engine conversion and inference |
@@ -121,7 +121,9 @@ Connect the headset from its XRoboToolkit app.
 | X | Mode down |
 | Trigger + B / A | Height up / down (crouch modes) |
 | B held 1s | Teleop on / off (engage in the reference pose: forearms 90° forward, palms inward) |
-| Both grips 1s | Emergency stop |
+| Left / right grip (analog) | Left / right Dex3-1 thumb close (0 = open, 1 = pressed against fingers) |
+| Left / right trigger (analog) | Left / right Dex3-1 index+middle close (0 = open, 1 = cage / fist) |
+| A + B + X + Y held 1s | Emergency stop |
 
 ## Usage
 

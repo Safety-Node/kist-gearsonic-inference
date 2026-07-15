@@ -6,6 +6,7 @@
 #include "pico/pico_vr_reader.hpp"
 #include "planner/planner_inference.hpp"
 #include "teleop/teleop_tracker.hpp"
+#include "unitree/hand_command_writer.hpp"
 #include "unitree/unitree_command_writer.hpp"
 #include "unitree/unitree_state_reader.hpp"
 
@@ -77,6 +78,14 @@ bool GearsonicSystem::start(const std::string& config_path) {
     }
     writer_started_ = true;
 
+    // Dex3-1 hands ride the same DDS factory; the trigger stream drives them
+    // orthogonally to the WBC policy (policy outputs 29 arm/leg joints only).
+    if (!HandCommandWriter::instance().start()) {
+        stop();
+        return false;
+    }
+    hand_writer_started_ = true;
+
     if (!control.start(root["control"]["encoder_path"].as<std::string>(),
                        root["control"]["decoder_path"].as<std::string>(),
                        /*auto_start_control=*/true)) {
@@ -96,6 +105,10 @@ void GearsonicSystem::stop() {
     if (control_started_) {
         WholeBodyController::instance().stop();
         control_started_ = false;
+    }
+    if (hand_writer_started_) {
+        HandCommandWriter::instance().stop();
+        hand_writer_started_ = false;
     }
     if (writer_started_) {
         UnitreeCommandWriter::instance().stop();

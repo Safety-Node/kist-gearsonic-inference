@@ -39,6 +39,13 @@ add_library(unitree_command_writer STATIC
 target_include_directories(unitree_command_writer PUBLIC include)
 target_link_libraries(unitree_command_writer PUBLIC unitree_sdk2 unitree_state_reader)
 
+# ─── hand_command_writer (Dex3-1) ────────────────────────────────────────────
+add_library(hand_command_writer STATIC
+    src/unitree/hand_command_writer.cpp
+)
+target_include_directories(hand_command_writer PUBLIC include)
+target_link_libraries(hand_command_writer PUBLIC unitree_sdk2 pico_vr_reader input_handler)
+
 # ─── tensorrt_inference ──────────────────────────────────────────────────────
 add_library(tensorrt_inference STATIC
     src/tensorrt/InferenceEngine.cpp
@@ -95,7 +102,7 @@ add_library(gearsonic_system STATIC
     src/system/gearsonic_system.cpp
 )
 target_include_directories(gearsonic_system PUBLIC include)
-target_link_libraries(gearsonic_system PUBLIC control unitree_command_writer yaml-cpp)
+target_link_libraries(gearsonic_system PUBLIC control unitree_command_writer hand_command_writer yaml-cpp)
 set_target_properties(gearsonic_system PROPERTIES CXX_STANDARD 20)
 
 # ─── main ─────────────────────────────────────────────────────────────────────
@@ -136,3 +143,8 @@ target_link_libraries(test_teleop_live PRIVATE teleop_tracker)
 
 add_executable(test_nav_command test/test_nav_command.cpp)
 target_link_libraries(test_nav_command PRIVATE input_handler)
+
+add_executable(test_hand_command_writer test/test_hand_command_writer.cpp)
+target_link_libraries(test_hand_command_writer PRIVATE hand_command_writer)
+
+add_executable(test_input_combo test/test_input_combo.cpp)

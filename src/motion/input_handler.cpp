@@ -24,11 +24,17 @@ static constexpr double kHeightSeed   = 0.8;   // on entering a crouch mode (gea
 static constexpr double kHeightMin    = 0.1;   // gear_sonic clamp
 static constexpr double kHeightMax    = 0.8;
 static constexpr double kHeightRate   = 0.3;   // m/s while held
-// E-stop gesture: both grips squeezed hard for a full second. High
-// threshold + both hands + hold time make accidental triggering unlikely
-// while matching the panic reflex of clenching the controllers.
-static constexpr double kEstopGrip      = 0.8;
-static constexpr int    kEstopHoldTicks = 500;  // 1s at 500Hz
+// E-stop gesture: all four face buttons held for a full second. Buttons
+// (not the grip axes) so hand control — grip=thumb, trigger=index+middle
+// — stays orthogonal; four-buttons+hold rules out reflex/accident.
+// Single-button actions defer 30 ms to distinguish deliberate presses
+// from the first-arriving buttons of a combo (rising edges never land on
+// the same tick at 500Hz, so a naive edge detector would fire whichever
+// button arrived first — resetting the mode or toggling teleop on the
+// way into an e-stop). Any two face buttons pressed at once cancels all
+// single-button actions until the buttons release.
+static constexpr int kEstopHoldTicks   = 500;  // 1s at 500Hz
+static constexpr int kSingleHoldTicks  = 15;   // 30ms at 500Hz — combo grace
 static constexpr double kDeadZone   = 0.15;   // gear_sonic JOYSTICK_DEADZONE
 static constexpr double kFacingRate = 1.5;    // rad/s at full stick (gear_sonic yaw_gain)
 static constexpr double kLoopDt     = 0.002;  // 500Hz
@@ -72,34 +78,46 @@ void InputHandler::loop() {
             double ly = ctrl->left_axis[1];
             double rx = ctrl->right_axis[0];
 
+            // ── combo detection ────────────────────────────────────
+            // Face buttons only. Trigger/grip are analog and drive the
+            // Dex3-1 hand — never gate them by combo state.
+            int n_face = (int)ctrl->btn_a + (int)ctrl->btn_b +
+                         (int)ctrl->btn_x + (int)ctrl->btn_y;
+            bool combo = n_face >= 2;
+
             // ── emergency stop (latched) ──────────────────────────
-            if (ctrl->left_grip > kEstopGrip && ctrl->right_grip > kEstopGrip) {
+            // All four face buttons held together for 1s. Combo suppression
+            // below prevents any per-button action from firing on the way
+            // in.
+            if (n_face == 4) {
                 if (++estop_hold_ticks_ >= kEstopHoldTicks && !estop_) {
                     estop_ = true;
-                    std::cerr << "[InputHandler] EMERGENCY STOP (grips held)\n";
+                    std::cerr << "[InputHandler] EMERGENCY STOP (A+B+X+Y held)\n";
                 }
             } else {
                 estop_hold_ticks_ = 0;
             }
 
-            // ── button edge detection ─────────────────────────────
-            btn_a_.update(ctrl->btn_a);
-            btn_x_.update(ctrl->btn_x);
-            btn_y_.update(ctrl->btn_y);
-
-            // ── mode selection ────────────────────────────────────
+            // ── mode selection (single-button, 30ms grace) ────────
             bool trigger_held = ctrl->left_trigger > kTriggerHeld ||
                                 ctrl->right_trigger > kTriggerHeld;
 
-            // with a trigger held, A becomes the height-down button
-            if (!trigger_held && btn_a_.on_press)
+            // Every single-button gesture defers by kSingleHoldTicks: any
+            // concurrent face button in that window resets the counter,
+            // voiding the gesture. Combos never trigger single-button
+            // effects.
+            bool a_alone = ctrl->btn_a && !combo && !trigger_held;
+            bool y_alone = ctrl->btn_y && !combo;
+            bool x_alone = ctrl->btn_x && !combo;
+
+            if (a_press_.tick(a_alone, kSingleHoldTicks))
                 mode_index_ = static_cast<int>(LocomotionMode::IDLE);  // escape from anywhere
-            if (btn_y_.on_press) {
+            if (y_press_.tick(y_alone, kSingleHoldTicks)) {
                 int limit = trigger_held ? kFullModeMax : kBasicModeMax;
                 if (mode_index_ < limit)
                     ++mode_index_;
             }
-            if (btn_x_.on_press && mode_index_ > 0)
+            if (x_press_.tick(x_alone, kSingleHoldTicks) && mode_index_ > 0)
                 --mode_index_;
 
             // ── body height (crouch modes only) ──────────────────
@@ -107,7 +125,10 @@ void InputHandler::loop() {
             if (crouched) {
                 if (height_ < 0.0)
                     height_ = kHeightSeed;  // just entered the crouch band
-                if (trigger_held) {
+                // Height rides trigger+B (up) / trigger+A (down). Gate
+                // by !combo so an incoming e-stop doesn't jog height on
+                // its way in.
+                if (trigger_held && !combo) {
                     if (ctrl->btn_b) height_ += kHeightRate * kLoopDt;  // B = up
                     if (ctrl->btn_a) height_ -= kHeightRate * kLoopDt;
                     height_ = std::clamp(height_, kHeightMin, kHeightMax);
