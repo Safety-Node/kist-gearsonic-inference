@@ -99,13 +99,21 @@ void TeleopTracker::loop() {
     }
 }
 
-// B held 1s (triggers released — trigger+B is the height control) —
-// a toggle: not calibrated -> calibrate (teleop on); calibrated ->
+// B held 1s (triggers released — trigger+B is the height control, and a
+// pressed trigger also means the operator is closing the fingers) — a
+// toggle: not calibrated -> calibrate (teleop on); calibrated ->
 // reset (back to g1). Must be released before it can fire again;
-// re-entry recalibrates fresh. Triggers stay free for hand control.
+// re-entry recalibrates fresh.
+//
+// Also gated by "B alone among the face buttons": A+B+X+Y is the e-stop
+// combo, and any 2-button hold voids per-button gestures (see
+// InputHandler). Without this the e-stop windup would flip teleop at
+// exactly the wrong moment.
 void TeleopTracker::check_calibration_gesture() {
     auto ctrl = PicoVRReader::instance().ctrl_buf.GetData();
-    bool held = ctrl && ctrl->btn_b &&
+    bool b_alone = ctrl && ctrl->btn_b &&
+                   !ctrl->btn_a && !ctrl->btn_x && !ctrl->btn_y;
+    bool held = b_alone &&
                 ctrl->left_trigger < kTriggerIdle &&
                 ctrl->right_trigger < kTriggerIdle;
     if (!held) {

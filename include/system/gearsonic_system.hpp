@@ -59,6 +59,7 @@ private:
     bool robot_started_{false};
     bool planner_started_{false};
     bool writer_started_{false};
+    bool hand_writer_started_{false};
     bool control_started_{false};
 
     std::atomic<bool> quit_{false};

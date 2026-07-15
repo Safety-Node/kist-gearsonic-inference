@@ -44,10 +44,23 @@ private:
 
     void loop();
 
-    struct Button {
-        bool prev{false};
-        bool on_press{false};
-        void update(bool cur) { on_press = cur && !prev; prev = cur; }
+    // "Held alone for N ticks" edge detector — decouples the physical
+    // press (which cannot happen simultaneously across buttons at tick
+    // resolution) from the logical single-button gesture. A concurrent
+    // press on any other face button resets the counter and voids the
+    // gesture, letting A+B+X+Y (or any 2-button pair) be safely detected
+    // as a combo instead of firing whichever button ticked first.
+    struct HoldTrigger {
+        int  ticks{0};
+        bool fired{false};
+        // Returns true exactly once when active_alone has held for `threshold`
+        // ticks. Reset by any release (or any tick with combo=true).
+        bool tick(bool active_alone, int threshold) {
+            if (!active_alone) { ticks = 0; fired = false; return false; }
+            if (fired) return false;
+            if (++ticks >= threshold) { fired = true; return true; }
+            return false;
+        }
     };
 
     double facing_angle_{0.0};
@@ -56,7 +69,7 @@ private:
     // and drop back to IDLE whenever the VR link is lost (gear_sonic default).
     std::atomic<int> mode_index_{0};  // IDLE
 
-    Button btn_a_, btn_x_, btn_y_;
+    HoldTrigger a_press_, x_press_, y_press_;
     int    estop_hold_ticks_{0};
     std::atomic<bool> estop_{false};
 
